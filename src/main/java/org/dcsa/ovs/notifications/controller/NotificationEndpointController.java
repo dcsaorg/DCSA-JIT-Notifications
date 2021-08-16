@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(value = "unofficial/notification-endpoints", produces = {MediaType.APPLICATION_JSON_VALUE})
+@RequestMapping(value = "notification-endpoints", produces = {MediaType.APPLICATION_JSON_VALUE})
 public class NotificationEndpointController extends ExtendedBaseController<NotificationEndpointService, NotificationEndpoint, UUID> {
 
     private final NotificationEndpointService notificationEndpointService;
