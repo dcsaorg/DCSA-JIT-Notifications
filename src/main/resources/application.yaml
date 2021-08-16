@@ -56,7 +56,7 @@ springdoc:
 
 dcsa:
   securityConfig:
-    receiveNotificationEndpoint: "/unofficial/notification-endpoints"
+    receiveNotificationEndpoint: "/notification-endpoints"
 
 server:
   port: 9090
