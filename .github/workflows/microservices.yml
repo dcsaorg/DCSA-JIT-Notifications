@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Fetch backend
-    - uses: actions/checkout@v2
+      uses: actions/checkout@v2
       with:
         path: DCSA-OVS-Notifications
         submodules: recursive
