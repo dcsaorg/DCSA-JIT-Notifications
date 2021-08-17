@@ -33,28 +33,4 @@ jobs:
 
     - name: Run the OVS Notifications microservice plus database
       run: cd DCSA-OVS-Notifications && docker-compose -f docker-compose.yml up -d -V
-
-#    - name: Checkout dcsaorg/DCSA-API-Validator
-#      uses: actions/checkout@v2
-#      with:
-#        repository: dcsaorg/DCSA-API-Validator
-#        ref: master
-#        token: ${{ secrets.REPO_ACCESS_PAT }}
-#        path: DCSA-API-Validator
-
-      # Assert that the database is ready to load the test data.
-#    - run: echo 'SELECT * FROM dcsa_im_v3_0.location;' | docker exec -i -u postgres dcsa_db psql -d dcsa_openapi -f - 2>/dev/null || sleep 5
-
-#    - name: Load DCSA test data
-#      run: cat DCSA-Information-Model/datamodel/testdata.d/*.sql | docker exec -i -u postgres dcsa_db psql -d dcsa_openapi -f -
-
-#    - name: Run API validator
-#      run: cd DCSA-API-Validator && mvn -Dtest.suite=TnTV2.xml test
-#      env:
-#        client_secret: ${{ secrets.AUTH0_DCSA_CLIENT_SECRET }}
-#        client_id: 1qEYXCbxWvjeYS8VVm1BfnfZrP3TY9n8
-#        audience: localhost
-#        OAuthTokenUri: https://dcsa.eu.auth0.com/oauth/token
-#        API_ROOT_URI: http://localhost:9090/v2
-#        CALLBACK_URI: http://172.17.0.1:4567
-#        DCSA_API_VALIDATOR_MAY_USE_POST_EVENTS_ENDPOINT: true
+      
