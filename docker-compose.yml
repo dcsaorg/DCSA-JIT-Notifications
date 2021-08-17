@@ -1,6 +1,6 @@
 version: '3.5'
 services:
-    dcsa-tnt:
+    dcsa-ovs-notifications:
         build:
            .
         ports:
