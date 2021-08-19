@@ -31,7 +31,7 @@ class NotificationEndpointControllerTest {
     WebTestClient webTestClient;
 
     @MockBean
-    NotificationEndpointService eventService;
+    NotificationEndpointService notificationEndpointService;
 
     @MockBean
     ExtendedParameters extendedParameters;
@@ -53,27 +53,13 @@ class NotificationEndpointControllerTest {
     @BeforeEach
     void init() {
         notificationEndpoint = new NotificationEndpoint();
-        notificationEndpoint.setEndpointID(UUID.randomUUID());
-        notificationEndpoint.setSubscriptionID(UUID.randomUUID().toString());
-        notificationEndpoint.setSecret("1245515151231231231231231231231231231231231231231231231231231231".getBytes(StandardCharsets.UTF_8));
-    }
-
-    @Test()
-    @DisplayName("Updating a notification event should throw forbidden for any valid request.")
-    void eventUpdatingShouldThrowForbiddenForAnyRequest() {
-        // test to confirm that the endpoint is disabled.
-        webTestClient
-                .post()
-                .uri("/receive/{id}", notificationEndpoint.getEndpointID())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(notificationEndpoint))
-                .exchange()
-                .expectStatus()
-                .is4xxClientError();
+        notificationEndpoint.setEndpointID(UUID.fromString("2d4b1329-6c31-4c25-826d-b3beb1268e9d"));
+        notificationEndpoint.setSubscriptionID("d45b0986-240c-49fd-9b35-efe3284a7542");
+        notificationEndpoint.setSecret("1231245515151231231231231231231231231231231231231231231231231231".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
-    @DisplayName("Creation of a notification event should throw forbidden for any valid request.")
+    @DisplayName("Creation of a notification endpoint should throw forbidden for any valid request.")
     void notificationEndpointCreateShouldThrowForbiddenForAnyRequest() {
         // test to confirm that the endpoint is disabled.
         webTestClient
@@ -87,7 +73,7 @@ class NotificationEndpointControllerTest {
     }
 
     @Test
-    @DisplayName("Putting a notification event should throw forbidden for any valid request.")
+    @DisplayName("Putting a notification endpoint should throw forbidden for any valid request.")
     void notificationEndpointPuttingShouldThrowForbiddenForAnyRequest() {
         // test to confirm that the endpoint is disabled.
         webTestClient
@@ -101,7 +87,7 @@ class NotificationEndpointControllerTest {
     }
 
     @Test
-    @DisplayName("Deleting a notification event should throw forbidden for any valid request.")
+    @DisplayName("Deleting a notification endpoint should throw forbidden for any valid request.")
     void notificationEndpointDeleteByIdShouldThrowForbiddenForAnyRequest() {
         // test to confirm that the endpoint is disabled.
         webTestClient
@@ -113,7 +99,7 @@ class NotificationEndpointControllerTest {
     }
 
     @Test
-    @DisplayName("Getting a notification event should throw forbidden for any valid request.")
+    @DisplayName("Getting a notification endpoint should throw forbidden for any valid request.")
     void notificationEndpointGetShouldThrowForbiddenForAnyRequest() {
         // test to confirm that the endpoint is disabled.
         webTestClient
