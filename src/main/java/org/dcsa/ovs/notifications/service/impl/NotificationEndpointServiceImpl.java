@@ -2,7 +2,14 @@ package org.dcsa.ovs.notifications.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dcsa.core.events.model.EquipmentEvent;
+import org.dcsa.core.events.model.Event;
+import org.dcsa.core.events.model.OperationsEvent;
+import org.dcsa.core.events.model.TransportEvent;
 import org.dcsa.core.events.model.enums.SignatureMethod;
+import org.dcsa.core.events.service.OperationsEventService;
+import org.dcsa.core.events.service.TransportCallTOService;
+import org.dcsa.core.events.service.TransportEventService;
 import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.core.exception.CreateException;
 import org.dcsa.core.service.impl.ExtendedBaseServiceImpl;
@@ -16,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -24,8 +30,11 @@ import java.util.UUID;
 @Slf4j
 public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<NotificationEndpointRepository, NotificationEndpoint, UUID> implements NotificationEndpointService {
 
-    private final NotificationEndpointRepository notificationEndpointRepository;
     private final MessageSignatureHandler messageSignatureHandler;
+    private final NotificationEndpointRepository notificationEndpointRepository;
+    private final OperationsEventService operationsEventService;
+    private final TransportEventService transportEventService;
+    private final TransportCallTOService transportCallTOService;
 
     @Override
     protected Mono<NotificationEndpoint> preSaveHook(NotificationEndpoint notificationEndpoint) {
@@ -76,7 +85,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                     return messageSignatureHandler.verifyRequest(request,
                             notificationEndpoint.getSubscriptionID(),
                             notificationEndpoint.getSecret(),
-                            Map.class);
+                            Event[].class);
                 }).flatMap(signatureResult -> {
                     if (!signatureResult.isValid()) {
                         // The unconditional usage of UNAUTHORIZED is deliberate. We are not interested in letting
@@ -85,12 +94,46 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                         log.debug("Rejecting message because: " + signatureResult.getResult());
                         return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED));
                     }
-                    // TODO: Implement as a part of DDT-114 using signatureResult.getParsed() and return "Mono.empty()"
-                    // (or end with .then())
-                    // Remember you can change the 4th parameter of "verifyRequest" above to change the type of
-                    // value returned by getParsed (it might require changes if you want to support complex
-                    // types)
-                    return Mono.error(new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED));
-                }).then();
+
+                    // TODO: Fails with "returned non unique result" when querying findById for OperationsEvent
+                    // TODO: Dependent on TransportEventTOService creating Vessel, Voyage, and Service
+                    Mono<? extends Event> result = Mono.empty();
+                    for (Event event : signatureResult.getParsed()) {
+                        event.setNewRecord(true);
+                        if (event instanceof OperationsEvent) {
+                            OperationsEvent operationsEvent = (OperationsEvent) event;
+                            result = result.then(transportCallTOService
+                                    .findById(operationsEvent.getTransportCall().getTransportCallID())
+                                    .switchIfEmpty(transportCallTOService.create(operationsEvent.getTransportCall()))
+                                    .flatMap(ignored -> operationsEventService.findById(operationsEvent.getEventID())
+                                            .switchIfEmpty(operationsEventService.create((OperationsEvent) setTransportCallID(operationsEvent)))));
+                        } else if (event instanceof TransportEvent) {
+                            TransportEvent transportEvent = (TransportEvent) event;
+                            result = result.then(transportCallTOService
+                                    .findById(transportEvent.getTransportCall().getTransportCallID())
+                                    .switchIfEmpty(transportCallTOService.create(transportEvent.getTransportCall()))
+                                    .flatMap(ignored -> transportEventService.findById(transportEvent.getEventID())
+                                            .switchIfEmpty(transportEventService.create((TransportEvent) setTransportCallID(transportEvent)))));
+                        }
+                    }
+                    return result.then();
+                });
     }
+
+    private Event setTransportCallID(Event event) {
+        if (event instanceof OperationsEvent) {
+            ((OperationsEvent) event).setTransportCallID(((OperationsEvent) event).getTransportCall().getTransportCallID());
+            return event;
+        }
+        if (event instanceof TransportEvent) {
+            ((TransportEvent) event).setTransportCallID(((TransportEvent) event).getTransportCall().getTransportCallID());
+            return event;
+        }
+        if (event instanceof EquipmentEvent) {
+            ((EquipmentEvent) event).setTransportCallID(((EquipmentEvent) event).getTransportCall().getTransportCallID());
+            return event;
+        }
+        return event;
+    }
+
 }
