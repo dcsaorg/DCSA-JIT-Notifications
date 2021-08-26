@@ -2,11 +2,10 @@ package org.dcsa.ovs.notifications.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.dcsa.core.events.model.EquipmentEvent;
-import org.dcsa.core.events.model.Event;
-import org.dcsa.core.events.model.OperationsEvent;
-import org.dcsa.core.events.model.TransportEvent;
+import org.dcsa.core.events.model.*;
 import org.dcsa.core.events.model.enums.SignatureMethod;
+import org.dcsa.core.events.model.transferobjects.TransportCallTO;
+import org.dcsa.core.events.service.GenericEventService;
 import org.dcsa.core.events.service.OperationsEventService;
 import org.dcsa.core.events.service.TransportCallTOService;
 import org.dcsa.core.events.service.TransportEventService;
@@ -30,10 +29,9 @@ import java.util.UUID;
 @Slf4j
 public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<NotificationEndpointRepository, NotificationEndpoint, UUID> implements NotificationEndpointService {
 
+    private final GenericEventService genericEventService;
     private final MessageSignatureHandler messageSignatureHandler;
     private final NotificationEndpointRepository notificationEndpointRepository;
-    private final OperationsEventService operationsEventService;
-    private final TransportEventService transportEventService;
     private final TransportCallTOService transportCallTOService;
 
     @Override
@@ -95,45 +93,21 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                         return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED));
                     }
 
-                    // TODO: Fails with "returned non unique result" when querying findById for OperationsEvent
-                    // TODO: Dependent on TransportEventTOService creating Vessel, Voyage, and Service
                     Mono<? extends Event> result = Mono.empty();
                     for (Event event : signatureResult.getParsed()) {
                         event.setNewRecord(true);
-                        if (event instanceof OperationsEvent) {
-                            OperationsEvent operationsEvent = (OperationsEvent) event;
-                            result = result.then(transportCallTOService
-                                    .findById(operationsEvent.getTransportCall().getTransportCallID())
-                                    .switchIfEmpty(transportCallTOService.create(operationsEvent.getTransportCall()))
-                                    .flatMap(ignored -> operationsEventService.findById(operationsEvent.getEventID())
-                                            .switchIfEmpty(operationsEventService.create((OperationsEvent) setTransportCallID(operationsEvent)))));
-                        } else if (event instanceof TransportEvent) {
-                            TransportEvent transportEvent = (TransportEvent) event;
-                            result = result.then(transportCallTOService
-                                    .findById(transportEvent.getTransportCall().getTransportCallID())
-                                    .switchIfEmpty(transportCallTOService.create(transportEvent.getTransportCall()))
-                                    .flatMap(ignored -> transportEventService.findById(transportEvent.getEventID())
-                                            .switchIfEmpty(transportEventService.create((TransportEvent) setTransportCallID(transportEvent)))));
+                        if (event instanceof TransportCallBasedEvent) {
+                            TransportCallBasedEvent tcbe = (TransportCallBasedEvent)event;
+                            TransportCallTO transportCallTO = tcbe.getTransportCall();
+                            result = result.then(transportCallTOService.findById(transportCallTO.getTransportCallID()))
+                                    .switchIfEmpty(transportCallTOService.create(transportCallTO))
+                                    .flatMap(ignored -> genericEventService.findByEventTypeAndEventID(event.getEventType(), event.getEventID()))
+                                    .switchIfEmpty(genericEventService.create(event));
+
                         }
                     }
                     return result.then();
                 });
-    }
-
-    private Event setTransportCallID(Event event) {
-        if (event instanceof OperationsEvent) {
-            ((OperationsEvent) event).setTransportCallID(((OperationsEvent) event).getTransportCall().getTransportCallID());
-            return event;
-        }
-        if (event instanceof TransportEvent) {
-            ((TransportEvent) event).setTransportCallID(((TransportEvent) event).getTransportCall().getTransportCallID());
-            return event;
-        }
-        if (event instanceof EquipmentEvent) {
-            ((EquipmentEvent) event).setTransportCallID(((EquipmentEvent) event).getTransportCall().getTransportCallID());
-            return event;
-        }
-        return event;
     }
 
 }
