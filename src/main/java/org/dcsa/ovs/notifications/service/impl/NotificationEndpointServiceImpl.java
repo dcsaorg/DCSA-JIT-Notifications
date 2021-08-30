@@ -72,6 +72,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
         return notificationEndpointRepository;
     }
 
+    @Transactional
     @Override
     public Mono<Void> receiveNotification(ServerHttpRequest request, UUID endpointID) {
         return findById(endpointID)
