@@ -59,7 +59,7 @@ dcsa:
     receiveNotificationEndpoint: "/notification-endpoints"
 
 server:
-  port: 9090
+  port: 9092
   error:
     include-binding-errors: on_param
     include-message: always
