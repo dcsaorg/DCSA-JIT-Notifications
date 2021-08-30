@@ -1,5 +1,7 @@
 package org.dcsa.ovs.notifications.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dcsa.core.events.model.*;
@@ -19,9 +21,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -29,10 +33,13 @@ import java.util.UUID;
 @Slf4j
 public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<NotificationEndpointRepository, NotificationEndpoint, UUID> implements NotificationEndpointService {
 
+    private static final TypeReference<List<Event>> EVENT_TYPE_REFERENCE = new TypeReference<>() {};
+
     private final GenericEventService genericEventService;
     private final MessageSignatureHandler messageSignatureHandler;
     private final NotificationEndpointRepository notificationEndpointRepository;
     private final TransportCallTOService transportCallTOService;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected Mono<NotificationEndpoint> preSaveHook(NotificationEndpoint notificationEndpoint) {
@@ -83,7 +90,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                     return messageSignatureHandler.verifyRequest(request,
                             notificationEndpoint.getSubscriptionID(),
                             notificationEndpoint.getSecret(),
-                            Event[].class);
+                            eventConverter());
                 }).flatMap(signatureResult -> {
                     if (!signatureResult.isValid()) {
                         // The unconditional usage of UNAUTHORIZED is deliberate. We are not interested in letting
@@ -101,13 +108,20 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                             TransportCallTO transportCallTO = tcbe.getTransportCall();
                             result = result.then(transportCallTOService.findById(transportCallTO.getTransportCallID()))
                                     .switchIfEmpty(transportCallTOService.create(transportCallTO))
+                                    .doOnNext(((TransportCallBasedEvent) event)::setTransportCall)
+                                    .doOnNext(tc -> ((TransportCallBasedEvent) event).setTransportCallID(tc.getTransportCallID()))
                                     .flatMap(ignored -> genericEventService.findByEventTypeAndEventID(event.getEventType(), event.getEventID()))
-                                    .switchIfEmpty(genericEventService.create(event));
+                                    .switchIfEmpty(genericEventService.create(event))
+                                    .thenReturn(event);
 
                         }
                     }
                     return result.then();
                 });
+    }
+
+    private MessageSignatureHandler.Converter<List<Event>> eventConverter() {
+        return (payload -> objectMapper.readValue(payload, EVENT_TYPE_REFERENCE));
     }
 
 }
