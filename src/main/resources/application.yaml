@@ -66,9 +66,10 @@ server:
 
 logging:
   level:
-    dk: DEBUG
+    root: INFO
     org:
-      dcsa: DEBUG
+      springframework:
+        r2dbc: INFO
 
 management:
   endpoint:
