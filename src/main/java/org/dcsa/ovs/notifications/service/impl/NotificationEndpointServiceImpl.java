@@ -4,19 +4,19 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.dcsa.core.events.model.*;
+import org.dcsa.core.events.model.Event;
+import org.dcsa.core.events.model.TransportCallBasedEvent;
 import org.dcsa.core.events.model.enums.SignatureMethod;
 import org.dcsa.core.events.model.transferobjects.TransportCallTO;
 import org.dcsa.core.events.service.GenericEventService;
-import org.dcsa.core.events.service.OperationsEventService;
 import org.dcsa.core.events.service.TransportCallTOService;
-import org.dcsa.core.events.service.TransportEventService;
 import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.core.exception.CreateException;
 import org.dcsa.core.service.impl.ExtendedBaseServiceImpl;
 import org.dcsa.ovs.notifications.model.NotificationEndpoint;
 import org.dcsa.ovs.notifications.repository.NotificationEndpointRepository;
 import org.dcsa.ovs.notifications.service.NotificationEndpointService;
+import org.dcsa.ovs.notifications.service.TimestampNotificationMailService;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -40,6 +40,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     private final NotificationEndpointRepository notificationEndpointRepository;
     private final TransportCallTOService transportCallTOService;
     private final ObjectMapper objectMapper;
+    private final TimestampNotificationMailService timestampNotificationMailService;
 
     @Override
     protected Mono<NotificationEndpoint> preSaveHook(NotificationEndpoint notificationEndpoint) {
@@ -112,8 +113,12 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                     .doOnNext(((TransportCallBasedEvent) event)::setTransportCall)
                                     .doOnNext(tc -> ((TransportCallBasedEvent) event).setTransportCallID(tc.getTransportCallID()))
                                     .flatMap(ignored -> genericEventService.findByEventTypeAndEventID(event.getEventType(), event.getEventID()))
-                                    .switchIfEmpty(genericEventService.create(event))
-                                    .thenReturn(event);
+                                    .switchIfEmpty(
+                                            genericEventService.create(event)
+                                            .flatMap(savedEvent -> timestampNotificationMailService.sendEmailNotificationsForEvent(event)
+                                                    .then(Mono.just(event))
+                                            )
+                                    ).thenReturn(event);
 
                         }
                     }
