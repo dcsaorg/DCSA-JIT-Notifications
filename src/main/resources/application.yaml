@@ -42,6 +42,27 @@ spring:
           issuer-uri: https://dcsa.eu.auth0.com/
   webflux:
     base-path: ${dcsa.url.prefix:}/v2
+  mail:
+    # Syntactically correct host name that will fail to resolve
+    # in DNS.  The hostname should be guide most admins to the
+    # proper solution. :)
+    host: please-set-spring.mail.host-property-in-dsca-app.invalid
+    # Leave username and password undefined here.
+    # That should be a deployment specific option
+    #
+    # See https://www.baeldung.com/spring-email for some
+    # examples.
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          # Leave port and auth undefined here.
+          # That should be a deployment specific option
+          starttls:
+            # We use a strict default.
+            enable: true
+            required: true
 
 auth0:
   audience: localhost
@@ -57,6 +78,33 @@ springdoc:
 dcsa:
   securityConfig:
     receiveNotificationEndpoint: "/notification-endpoints"
+  webui:
+    baseUrl: "NOT_SPECIFIED"
+  email:
+    from: noreply@dcsa.org
+    timezone: "NOT_SPECIFIED"
+    dateFormat: MM/dd/yyyy HH:mm
+    debugEmail: false
+    templates:
+      timestampReceived:
+        onlyForEventType:
+          - OPERATIONS
+        onlyForEventClassifierCode:
+          - EST
+          - REQ
+        subject: Response requested on timestamp from vessel {{VESSEL_NAME}}.
+        body: |
+          <p>Vessel {{VESSEL_NAME}} // IMO{{VESSEL_IMO_NUMBER}} registered a new {{TIMESTAMP_TYPE}}. Your response is required.</p>
+          <p>Please go to <a href="{{WEB_UI_LINK}}">{{WEB_UI_LINK}}</a> and response to the timestamp.</p>
+
+  pendingEventService:
+    # DCSA-OVS will process these.
+    enabled: false
+    backgroundTasks:
+      processUnmappedEventQueue:
+        cronSchedule: "-"
+      processPendingEventQueue:
+        cronSchedule: "-"
 
 server:
   port: 9092

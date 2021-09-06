@@ -26,7 +26,11 @@
     </properties>
 
 	<dependencies>
-		<dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.dcsa</groupId>
             <artifactId>dcsa_core</artifactId>
             <version>${dcsa.version}${dcsa.core.tag}${dcsa.artifacttype}</version>
