@@ -168,7 +168,13 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
                 return Mono.just(operationsEvent);
             }
         }
-        MailTemplate template = mailConfiguration.getTemplate(templateName);
+        MailTemplate template = mailConfiguration.getTemplates().get(templateName);
+        if (template == null) {
+            // Would happen if we record that we are going to send an email in the db, the app is stopped,
+            // the template is removed and the app is started again.  An unlikely scenario, but we should
+            // not break the entire mail flow on that either.
+            return Mono.just(operationsEvent);
+        }
         String toAddress = template.getTo();
         if ("NOT_SPECIFIED".equals(toAddress)) {
             shouldSendEmail = false;
