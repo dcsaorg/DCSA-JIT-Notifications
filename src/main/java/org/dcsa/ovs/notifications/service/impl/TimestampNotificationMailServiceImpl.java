@@ -301,22 +301,24 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
                 .append('_');
         String suffix = "(Unknown)";
 
-        if (operationsEvent.getFacilityTypeCode() != null) {
-            switch (operationsEvent.getFacilityTypeCode()) {
-                case BRTH:
-                    suffix = "Berth";
-                    break;
-                case PBPL:
-                    suffix = "PBP";
-                    break;
-            }
-        } else if (operationsEvent.getPortCallServiceTypeCode() != null){
+        if (operationsEvent.getPortCallServiceTypeCode() != null) {
+            // Strictly speaking, we should ensure that facilityTypeCode is BRTH for these, but it is probably
+            // not worth it
             switch (operationsEvent.getPortCallServiceTypeCode()) {
                 case CRGO:
                     suffix = "Cargo_Ops";
                     break;
                 case PILO:
                     suffix = "Pilot";
+                    break;
+            }
+        } else if (operationsEvent.getFacilityTypeCode() != null) {
+            switch (operationsEvent.getFacilityTypeCode()) {
+                case BRTH:
+                    suffix = "Berth";
+                    break;
+                case PBPL:
+                    suffix = "PBP";
                     break;
             }
         }
