@@ -80,7 +80,7 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
     // These are substitution variables that have a "constant" definition.  The sendEmail code also has
     // a separate map for "runtime" (configuration derived) variables.
     private static final Map<String, Function<OperationsEvent, Object>> SUBST_VARS = Map.ofEntries(
-            Map.entry("TIMESTAMP_TYPE", TimestampNotificationMailServiceImpl::timestampType),
+            Map.entry("TIMESTAMP_TYPE", OperationsEvent::getTimestampTypeName),
             Map.entry("VESSEL_NAME", (oe) -> oe.getTransportCall().getVessel().getVesselName()),
             Map.entry("VESSEL_IMO_NUMBER", (oe) -> oe.getTransportCall().getVessel().getVesselIMONumber())
     );
@@ -287,43 +287,6 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
             }
             processPendingEmailQueue = null;
         }).subscribe();
-    }
-
-    private static String timestampType(OperationsEvent operationsEvent) {
-        OperationsEventTypeCode eventTypeCode = operationsEvent.getOperationsEventTypeCode();
-        EventClassifierCode classifierCode = operationsEvent.getEventClassifierCode();
-        if (eventTypeCode == null || classifierCode == null) {
-            return "<Unknown timestamp>";
-        }
-        StringBuilder timestampType = new StringBuilder(25);
-        // Create the "ETA_" (etc.) prefix
-        timestampType.append(classifierCode.name().charAt(0)).append('T').append(eventTypeCode.name().charAt(0))
-                .append('_');
-        String suffix = "(Unknown)";
-
-        if (operationsEvent.getPortCallServiceTypeCode() != null) {
-            // Strictly speaking, we should ensure that facilityTypeCode is BRTH for these, but it is probably
-            // not worth it
-            switch (operationsEvent.getPortCallServiceTypeCode()) {
-                case CRGO:
-                    suffix = "Cargo_Ops";
-                    break;
-                case PILO:
-                    suffix = "Pilot";
-                    break;
-            }
-        } else if (operationsEvent.getFacilityTypeCode() != null) {
-            switch (operationsEvent.getFacilityTypeCode()) {
-                case BRTH:
-                    suffix = "Berth";
-                    break;
-                case PBPL:
-                    suffix = "PBP";
-                    break;
-            }
-        }
-        timestampType.append(suffix);
-        return timestampType.toString();
     }
 
     @RequiredArgsConstructor(staticName = "of")
