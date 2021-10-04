@@ -14,19 +14,31 @@ import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.core.exception.CreateException;
 import org.dcsa.core.service.impl.ExtendedBaseServiceImpl;
 import org.dcsa.ovs.notifications.model.NotificationEndpoint;
+import org.dcsa.ovs.notifications.model.Subscription;
+import org.dcsa.ovs.notifications.model.SubscriptionsConfiguration;
 import org.dcsa.ovs.notifications.repository.NotificationEndpointRepository;
 import org.dcsa.ovs.notifications.service.NotificationEndpointService;
 import org.dcsa.ovs.notifications.service.TimestampNotificationMailService;
+import org.dcsa.ovs.notifications.util.SubscriberFunction;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.UUID;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 @RequiredArgsConstructor
 @Service
@@ -41,20 +53,25 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     private final TransportCallTOService transportCallTOService;
     private final ObjectMapper objectMapper;
     private final TimestampNotificationMailService timestampNotificationMailService;
+    private final SubscriptionsConfiguration subscriptionsConfiguration;
+    private final SignatureMethod signatureMethod = SignatureMethod.HMAC_SHA256;
+    private final Set<String> checkedSubscriptions = new HashSet<>();
+
+    @Value("${dcsa.notificationBaseUrl}")
+    private String notificationUrl;
 
     @Override
     protected Mono<NotificationEndpoint> preSaveHook(NotificationEndpoint notificationEndpoint) {
-        SignatureMethod method = SignatureMethod.HMAC_SHA256;
         byte[] secret = notificationEndpoint.getSecret();
         if (secret == null) {
             return Mono.error(new CreateException("Missing mandatory secret field"));
         }
-        if (secret.length < method.getMinKeyLength()) {
-            return Mono.error(new CreateException("length of the secret should be minimum " + method.getMinKeyLength()
+        if (secret.length < signatureMethod.getMinKeyLength()) {
+            return Mono.error(new CreateException("length of the secret should be minimum " + signatureMethod.getMinKeyLength()
                     + " bytes long (was: " + secret.length + ")"));
         }
-        if (method.getMaxKeyLength() < secret.length) {
-            return Mono.error(new CreateException("length of the secret should be maximum " + method.getMinKeyLength()
+        if (signatureMethod.getMaxKeyLength() < secret.length) {
+            return Mono.error(new CreateException("length of the secret should be maximum " + signatureMethod.getMaxKeyLength()
                     + " bytes long (was: " + secret.length + ")"));
         }
         return super.preSaveHook(notificationEndpoint);
@@ -130,4 +147,154 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
         return (payload -> objectMapper.readValue(payload, EVENT_TYPE_REFERENCE));
     }
 
+    @Transactional
+    public <S, U> Mono<NotificationEndpoint> setupSubscription(Consumer<NotificationEndpoint> configurator,
+                                                        BiFunction<URI, NotificationEndpoint, SubscriberFunction<S, U>> subscriberProvider,
+                                                        BiFunction<URI, NotificationEndpoint, S> subscriptionPayloadProvider
+                                                        ) {
+        NotificationEndpoint notificationEndpoint = new NotificationEndpoint();
+        if (notificationEndpoint.getSecret() == null) {
+            notificationEndpoint.setSecret(signatureMethod.generateSecret());
+        }
+        if (configurator != null) {
+            configurator.accept(notificationEndpoint);
+        }
+        if (notificationEndpoint.getSubscriptionID() != null) {
+            return Mono.error(new IllegalStateException("setupSubscription: Cannot setup a notification with the subscription known ahead of time!"));
+        }
+        return this.create(notificationEndpoint)
+                .flatMap(ep -> {
+                    URI callbackUrl = callbackUrlForEndpoint(ep);
+                    return subscribe(ep, subscriberProvider.apply(callbackUrl, ep), subscriptionPayloadProvider.apply(callbackUrl, ep));
+                });
+    }
+
+    private URI callbackUrlForEndpoint(NotificationEndpoint ep) {
+        try {
+            return new URI(this.notificationUrl + "/" + ep.getEndpointID());
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private <S, U> Mono<NotificationEndpoint> subscribe(NotificationEndpoint ep, SubscriberFunction<S, U> subscriberFunction, S body) {
+        return subscriberFunction.subscribe(body)
+                .doOnNext(ep::setSubscriptionID)
+                .thenReturn(ep)
+                .doOnNext(endpoint -> {
+                    if (endpoint.getManagedEndpoint() == Boolean.TRUE && "".equals(endpoint.getSubscriptionURL())) {
+                        URI uri = subscriberFunction.getSubscriptionBaseURI();
+                        StringBuilder subscriberUrl;
+                        try {
+                            subscriberUrl = new StringBuilder(uri.toURL().toString());
+                        } catch (MalformedURLException e) {
+                            // The URI was valid enough for calling an endpoint.  Seems reasonable to assume it is
+                            // also a valid URL.
+                            throw new AssertionError(e);
+                        }
+                        if (subscriberUrl.charAt(subscriberUrl.length() - 1) != '/') {
+                            subscriberUrl.append('/');
+                        }
+                        subscriberUrl.append(ep.getSubscriptionID());
+                        endpoint.setSubscriptionURL(subscriberUrl.toString());
+                    }
+                })
+                .flatMap(this::save);
+    }
+
+    @EventListener(ApplicationStartedEvent.class)
+    void initialize() {
+        log.info("Using " + this.notificationUrl + " as base URL for generated subscriptions.  Change via dcsa.baseUrl OR dcsa.notificationBaseUrl");
+        try {
+            new URI(this.notificationUrl);
+        } catch (URISyntaxException e) {
+            log.error("The notification url is not a valid URL", e);
+            throw new RuntimeException("Notification URl is invalid.  Please correct it via dcsa.baseUrl OR dcsa.notificationBaseUrl", e);
+        }
+    }
+
+    @Scheduled(
+            // We wait a while during start up before triggering this to allow other participants to come online first
+            // (in the DCSA clusters, all nodes are deployed at the same time).  Additionally, we periodically recheck
+            // the subscriptions to verify that they are correct.  This should ensure self-healing if the initial round
+            // fails provided that the setup can recover from the error.
+            initialDelayString = "PT2M",
+            fixedDelayString = "PT1H"
+    )
+    void checkSubscriptions() {
+        log.info("Checking that all managed subscriptions are up to date");
+        // TODO: We ought to remove "unknown" managed subscriptions.
+        notificationEndpointRepository.removeIncompletelySetupEndpoints()
+                .thenMany(Flux.fromIterable(subscriptionsConfiguration.getSubscriptions().entrySet()))
+                .filter(entry -> !checkedSubscriptions.contains(entry.getKey()))
+                .concatMap(entry -> {
+                    String reference = entry.getKey();
+                    Subscription subscription = entry.getValue();
+                    BiFunction<URI, NotificationEndpoint, SubscriberFunction<Map<String, Object>, Map<String, Object>>> subscriberFunctionProvider = (callbackUrl, notificationEndpoint) -> {
+                        assert notificationEndpoint.getSubscriptionID() == null || notificationEndpoint.getSubscriptionURL().equals("");
+
+                        return SubscriberFunction.of(
+                                subscription.getPublisherBaseURI(),
+                                notificationEndpoint.getSubscriptionID(),
+                                subscription.getAttributeProvider()
+                        );
+                    };
+
+                    return notificationEndpointRepository.findByEndpointReference(reference)
+                            .flatMap(ep -> {
+                                URI callbackUrl = callbackUrlForEndpoint(ep);
+                                SubscriberFunction<Map<String, Object>, Map<String, Object>> subscriberFunction = subscriberFunctionProvider.apply(
+                                        callbackUrl,
+                                        ep
+                                );
+                                Map<String, Object> eventSubscription = subscription.asSubscription();
+                                eventSubscription.put("subscriptionID", ep.getSubscriptionID());
+                                eventSubscription.put("callbackUrl", callbackUrl);
+                                return subscriberFunction.updateSubscription(eventSubscription)
+                                        .thenReturn(ep)
+                                        .onErrorResume(SubscriberFunction.SubscriptionEndpointNotFoundException.class, e -> {
+                                            if (ep.getSubscriptionID() != null) {
+                                                log.info("Found endpoint " + ep.getEndpointID() + " with subscription ID " + ep.getEndpointID()
+                                                        + ", but remote server does not recognise that ID.  Discarding it.");
+                                                return notificationEndpointRepository.delete(ep)
+                                                        .then(Mono.empty());
+                                            }
+                                            // This should not happen, but lets not pretend we can fix it.
+                                            return Mono.error(e);
+                                        })
+                                        .flatMap(e -> {
+                                            if (e.getSubscriptionID() == null) {
+                                                return Mono.empty();
+                                            }
+                                            return subscriberFunction.updateSecret(e.getSecret())
+                                                    .thenReturn(ep)
+                                                    .doOnSuccess(es -> log.info("Successfully updated existing subscription " + reference));
+                                        });
+                            })
+                            .switchIfEmpty(setupSubscription((notificationEndpoint) -> {
+                                notificationEndpoint.setEndpointReference(reference);
+                                notificationEndpoint.setManagedEndpoint(true);
+                                // dummy value for now; will be replaced when setup is done (needed due to constraints)
+                                notificationEndpoint.setSubscriptionURL("");
+                            }, subscriberFunctionProvider, (callbackUrl, notificationEndpoint) -> {
+                                Map<String, Object> eventSubscription = subscription.asSubscription();
+                                byte[] secret = notificationEndpoint.getSecret();
+                                assert secret != null && secret.length > 0;
+                                eventSubscription.put("callbackUrl", callbackUrl);
+                                eventSubscription.put("secret", secret);
+                                return eventSubscription;
+                            })
+                                .doOnSuccess(es -> log.info("Successfully setup subscription " + reference))
+                            ).doOnNext(es -> checkedSubscriptions.add(es.getEndpointReference()))
+                            .doOnNext(es -> {
+                                if (checkedSubscriptions.size() == subscriptionsConfiguration.getSubscriptions().size()) {
+                                    log.info("All configured/managed subscriptions has been handled");
+                                }
+                            });
+
+                })
+                .then()
+                .block();
+
+    }
 }
