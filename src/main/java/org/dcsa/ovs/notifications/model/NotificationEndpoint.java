@@ -23,4 +23,12 @@ public class NotificationEndpoint {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private byte[] secret;
 
+    @Column("endpoint_reference")
+    private String endpointReference;
+
+    @Column("managed_endpoint")
+    private Boolean managedEndpoint;
+
+    @Column("subscription_url")
+    private String subscriptionURL;
 }
