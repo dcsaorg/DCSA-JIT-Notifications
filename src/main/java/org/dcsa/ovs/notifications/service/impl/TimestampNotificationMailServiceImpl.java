@@ -191,7 +191,10 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
 
         ZoneId zoneId = getEmailTimezone();
 
-        Map<String, Function<OperationsEvent, Object>> customValues = Map.of("WEB_UI_LINK", (oe) -> webUIBaseUrl);
+        Map<String, Function<OperationsEvent, Object>> customValues = Map.of(
+                "WEB_UI_BASE_URI", (oe) -> webUIBaseUrl,
+                "TRANSPORT_CALL_ID", (oe) -> oe.getTransportCall().getTransportCallID()
+        );
         TemplateSubst<OperationsEvent> subst = TemplateSubst.of(
                 operationsEvent,
                 zoneId,
