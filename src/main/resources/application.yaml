@@ -83,7 +83,7 @@ dcsa:
   email:
     from: noreply@dcsa.org
     timezone: "NOT_SPECIFIED"
-    dateFormat: MM/dd/yyyy HH:mm
+    dateFormat: MM/LLL/yyyy HH:mm
     debugEmail: false
     templates:
       timestampReceived:
@@ -95,7 +95,7 @@ dcsa:
         subject: Response requested on timestamp from vessel {{VESSEL_NAME}}.
         body: |
           <p>Vessel {{VESSEL_NAME}} // IMO{{VESSEL_IMO_NUMBER}} registered a new {{TIMESTAMP_TYPE}}. Your response is required.</p>
-          <p>Please go to <a href="{{WEB_UI_LINK}}">{{WEB_UI_LINK}}</a> and response to the timestamp.</p>
+          <p>Please go to <a href="{{WEB_UI_BASE_URI}}/transportcall/{{TRANSPORT_CALL_ID}}">{{WEB_UI_BASE_URI}}/transportcall/{{TRANSPORT_CALL_ID}}</a> and respond to the timestamp.</p>
 
   pendingEventService:
     # DCSA-OVS will process these.
