@@ -2,23 +2,29 @@ package org.dcsa.ovs.notifications.util;
 
 import lombok.*;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
+import org.springframework.security.oauth2.client.web.server.UnAuthenticatedServerOAuth2AuthorizedClientRepository;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.function.Consumer;
 
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-@AllArgsConstructor(access = AccessLevel.PACKAGE)
-public class Subscriber<S, U> implements SubscriberFunction<S, U> {
+@AllArgsConstructor
+public class Subscriber<S, U> implements SubscriptionHandler<S, U> {
 
+    @NonNull
+    private final ReactiveClientRegistrationRepository clientRegistrations;
     @NonNull
     @Getter
     private final URI subscriptionBaseURI;
     private String subscriptionID;
-    @NonNull
     private final Consumer<Map<String, Object>> attributesProvider;
 
     public Mono<Void> updateSecret(byte[] secret) {
@@ -67,13 +73,14 @@ public class Subscriber<S, U> implements SubscriberFunction<S, U> {
     }
 
     private <P> Mono<String> invoke(HttpMethod httpMethod, URI subscriptionURI, P payload, String action, boolean expectedNoContent) {
-        WebClient webClient = WebClient.builder()
-                .defaultHeader("Content-Type", "application/json")
-                .build();
-
-        return webClient.method(httpMethod)
+        WebClient.Builder builder = WebClient.builder();
+        if (this.attributesProvider != null) {
+            builder.filter(serverOAuth2AuthorizedClientExchangeFilterFunction);
+        }
+        return builder.build().method(httpMethod)
                 .uri(subscriptionURI)
                 .attributes(this.attributesProvider)
+                .header("Content-Type", "application/json")
                 .bodyValue(payload)
                 .exchangeToMono(clientResponse -> {
                     switch (clientResponse.statusCode()) {

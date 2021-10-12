@@ -37,6 +37,22 @@ spring:
     initialization-mode: always
   security:
     oauth2:
+      client:
+        provider:
+          dcsaclient:
+            token-uri: https://testdcsa.auth.eu-west-1.amazoncognito.com/oauth2/token
+            user-info-uri: https://testdcsa.auth.eu-west-1.amazoncognito.com/oauth2/userInfo
+            user-name-attribute: cognito:username
+            authorization-uri: https://testdcsa.auth.eu-west-1.amazoncognito.com/oauth2/authorize
+
+        registration:
+          dcsaclient:
+            client-name: DCSA client
+            client-id: 39qcbeh5488538htcgna7eooek
+            client-secret: 18314v1o7j99r425t906b9ikovtass3ivmu6th0jti18tnjmjghg
+            authorization-grant-type: authorization_code
+            redirect-uri: http://localhost:9092/login/oauth2/code/dcsa-client
+
       resourceserver:
         jwt:
           issuer-uri: https://dcsa.eu.auth0.com/
@@ -63,10 +79,6 @@ spring:
             # We use a strict default.
             enable: true
             required: true
-
-auth0:
-  audience: localhost
-  enabled: false
 
 springdoc:
   api-docs:

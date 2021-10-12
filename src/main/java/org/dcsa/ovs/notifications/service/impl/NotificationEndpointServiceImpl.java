@@ -19,7 +19,7 @@ import org.dcsa.ovs.notifications.model.SubscriptionsConfiguration;
 import org.dcsa.ovs.notifications.repository.NotificationEndpointRepository;
 import org.dcsa.ovs.notifications.service.NotificationEndpointService;
 import org.dcsa.ovs.notifications.service.TimestampNotificationMailService;
-import org.dcsa.ovs.notifications.util.SubscriberFunction;
+import org.dcsa.ovs.notifications.util.SubscriptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
@@ -53,7 +53,10 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     private final TransportCallTOService transportCallTOService;
     private final ObjectMapper objectMapper;
     private final TimestampNotificationMailService timestampNotificationMailService;
+    private final SubscriptionHandlerProvider subscriptionHandlerProvider;
     private final SubscriptionsConfiguration subscriptionsConfiguration;
+
+
     private final SignatureMethod signatureMethod = SignatureMethod.HMAC_SHA256;
     private final Set<String> checkedSubscriptions = new HashSet<>();
 
@@ -149,7 +152,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
 
     @Transactional
     public <S, U> Mono<NotificationEndpoint> setupSubscription(Consumer<NotificationEndpoint> configurator,
-                                                        BiFunction<URI, NotificationEndpoint, SubscriberFunction<S, U>> subscriberProvider,
+                                                        BiFunction<URI, NotificationEndpoint, SubscriptionHandler<S, U>> subscriberProvider,
                                                         BiFunction<URI, NotificationEndpoint, S> subscriptionPayloadProvider
                                                         ) {
         NotificationEndpoint notificationEndpoint = new NotificationEndpoint();
@@ -177,13 +180,13 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
         }
     }
 
-    private <S, U> Mono<NotificationEndpoint> subscribe(NotificationEndpoint ep, SubscriberFunction<S, U> subscriberFunction, S body) {
-        return subscriberFunction.subscribe(body)
+    private <S, U> Mono<NotificationEndpoint> subscribe(NotificationEndpoint ep, SubscriptionHandler<S, U> subscriptionHandler, S body) {
+        return subscriptionHandler.subscribe(body)
                 .doOnNext(ep::setSubscriptionID)
                 .thenReturn(ep)
                 .doOnNext(endpoint -> {
                     if (endpoint.getManagedEndpoint() == Boolean.TRUE && "".equals(endpoint.getSubscriptionURL())) {
-                        URI uri = subscriberFunction.getSubscriptionBaseURI();
+                        URI uri = subscriptionHandler.getSubscriptionBaseURI();
                         StringBuilder subscriberUrl;
                         try {
                             subscriberUrl = new StringBuilder(uri.toURL().toString());
@@ -230,10 +233,10 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                 .concatMap(entry -> {
                     String reference = entry.getKey();
                     Subscription subscription = entry.getValue();
-                    BiFunction<URI, NotificationEndpoint, SubscriberFunction<Map<String, Object>, Map<String, Object>>> subscriberFunctionProvider = (callbackUrl, notificationEndpoint) -> {
+                    BiFunction<URI, NotificationEndpoint, SubscriptionHandler<Map<String, Object>, Map<String, Object>>> subscriberFunctionProvider = (callbackUrl, notificationEndpoint) -> {
                         assert notificationEndpoint.getSubscriptionID() == null || notificationEndpoint.getSubscriptionURL().equals("");
 
-                        return SubscriberFunction.of(
+                        return subscriptionHandlerProvider.handlerFor(
                                 subscription.getPublisherBaseURI(),
                                 notificationEndpoint.getSubscriptionID(),
                                 subscription.getAttributeProvider()
@@ -243,16 +246,16 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                     return notificationEndpointRepository.findByEndpointReference(reference)
                             .flatMap(ep -> {
                                 URI callbackUrl = callbackUrlForEndpoint(ep);
-                                SubscriberFunction<Map<String, Object>, Map<String, Object>> subscriberFunction = subscriberFunctionProvider.apply(
+                                SubscriptionHandler<Map<String, Object>, Map<String, Object>> subscriptionHandler = subscriberFunctionProvider.apply(
                                         callbackUrl,
                                         ep
                                 );
                                 Map<String, Object> eventSubscription = subscription.asSubscription();
                                 eventSubscription.put("subscriptionID", ep.getSubscriptionID());
                                 eventSubscription.put("callbackUrl", callbackUrl);
-                                return subscriberFunction.updateSubscription(eventSubscription)
+                                return subscriptionHandler.updateSubscription(eventSubscription)
                                         .thenReturn(ep)
-                                        .onErrorResume(SubscriberFunction.SubscriptionEndpointNotFoundException.class, e -> {
+                                        .onErrorResume(SubscriptionHandler.SubscriptionEndpointNotFoundException.class, e -> {
                                             if (ep.getSubscriptionID() != null) {
                                                 log.info("Found endpoint " + ep.getEndpointID() + " with subscription ID " + ep.getEndpointID()
                                                         + ", but remote server does not recognise that ID.  Discarding it.");
@@ -266,7 +269,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                             if (e.getSubscriptionID() == null) {
                                                 return Mono.empty();
                                             }
-                                            return subscriberFunction.updateSecret(e.getSecret())
+                                            return subscriptionHandler.updateSecret(e.getSecret())
                                                     .thenReturn(ep)
                                                     .doOnSuccess(es -> log.info("Successfully updated existing subscription " + reference));
                                         });

@@ -2,7 +2,6 @@ package org.dcsa.ovs.notifications.model;
 
 import lombok.Data;
 import org.dcsa.core.events.model.enums.EventType;
-import org.dcsa.ovs.notifications.util.SubscriberFunction;
 import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
 
 import java.net.URI;
@@ -14,8 +13,6 @@ import java.util.stream.Collectors;
 
 @Data
 public class Subscription {
-
-    private static final Consumer<Map<String, Object>> DEFAULT_ATTRIBUTES = (x) -> {};
 
     private URI publisherBaseURI;
     private String springOIDCClient = "NONE";
@@ -31,7 +28,7 @@ public class Subscription {
 
     public Consumer<Map<String, Object>> getAttributeProvider() {
         if (springOIDCClient.equals("NONE")) {
-            return DEFAULT_ATTRIBUTES;
+            return null;
         }
         return ServerOAuth2AuthorizedClientExchangeFilterFunction.clientRegistrationId(springOIDCClient);
     }
