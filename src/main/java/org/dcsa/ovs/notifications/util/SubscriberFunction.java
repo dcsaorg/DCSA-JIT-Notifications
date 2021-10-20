@@ -1,10 +1,9 @@
 package org.dcsa.ovs.notifications.util;
 
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
-import java.util.Map;
-import java.util.function.Consumer;
 
 public interface SubscriberFunction<S, U> {
 
@@ -13,12 +12,8 @@ public interface SubscriberFunction<S, U> {
     Mono<Void> updateSubscription(U u);
     Mono<Void> updateSecret(byte[] newSecret);
 
-    static <S, U> Subscriber<S, U> of(URI publisherSubscriptionEndpoint, Consumer<Map<String, Object>> attributesProvider) {
-       return new Subscriber<>(publisherSubscriptionEndpoint, attributesProvider);
-    }
-
-    static <S, U> Subscriber<S, U> of(URI publisherSubscriptionEndpoint, String subscriptionID, Consumer<Map<String, Object>> attributesProvider) {
-        return new Subscriber<>(publisherSubscriptionEndpoint, subscriptionID, attributesProvider);
+    static <S, U> Subscriber<S, U> of(URI publisherSubscriptionEndpoint, String subscriptionID, WebClient webClient) {
+        return new Subscriber<>(publisherSubscriptionEndpoint, subscriptionID, webClient);
     }
 
     class SubscriptionEndpointNotFoundException extends RuntimeException {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.dcsa.core.events.model.Event;
 import org.dcsa.core.events.model.TransportCallBasedEvent;
 import org.dcsa.core.events.model.enums.SignatureMethod;
@@ -20,8 +21,11 @@ import org.dcsa.ovs.notifications.repository.NotificationEndpointRepository;
 import org.dcsa.ovs.notifications.service.NotificationEndpointService;
 import org.dcsa.ovs.notifications.service.TimestampNotificationMailService;
 import org.dcsa.ovs.notifications.util.SubscriberFunction;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -29,6 +33,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -57,8 +62,19 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     private final SignatureMethod signatureMethod = SignatureMethod.HMAC_SHA256;
     private final Set<String> checkedSubscriptions = new HashSet<>();
 
+    @Autowired
+    @Lazy
+    @Qualifier("dcsaclient")
+    private WebClient dcsaWebClient;
+
     @Value("${dcsa.notificationBaseUrl}")
     private String notificationUrl;
+
+    @Value("${spring.security.oauth2.client.registration.dcsaclient.client-id:}")
+    private String clientID;
+
+    @Value("${spring.security.oauth2.client.provider.dcsaclient.token-uri:}")
+    private String tokenUri;
 
     @Override
     protected Mono<NotificationEndpoint> preSaveHook(NotificationEndpoint notificationEndpoint) {
@@ -213,88 +229,123 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
         }
     }
 
-    @Scheduled(
-            // We wait a while during start up before triggering this to allow other participants to come online first
-            // (in the DCSA clusters, all nodes are deployed at the same time).  Additionally, we periodically recheck
-            // the subscriptions to verify that they are correct.  This should ensure self-healing if the initial round
-            // fails provided that the setup can recover from the error.
-            initialDelayString = "PT2M",
-            fixedDelayString = "PT1H"
-    )
-    void checkSubscriptions() {
-        log.info("Checking that all managed subscriptions are up to date");
-        // TODO: We ought to remove "unknown" managed subscriptions.
-        notificationEndpointRepository.removeIncompletelySetupEndpoints()
-                .thenMany(Flux.fromIterable(subscriptionsConfiguration.getSubscriptions().entrySet()))
-                .filter(entry -> !checkedSubscriptions.contains(entry.getKey()))
-                .concatMap(entry -> {
-                    String reference = entry.getKey();
-                    Subscription subscription = entry.getValue();
-                    BiFunction<URI, NotificationEndpoint, SubscriberFunction<Map<String, Object>, Map<String, Object>>> subscriberFunctionProvider = (callbackUrl, notificationEndpoint) -> {
-                        assert notificationEndpoint.getSubscriptionID() == null || notificationEndpoint.getSubscriptionURL().equals("");
+  @Scheduled(
+      // We wait a while during start up before triggering this to allow other participants to come
+      // online first
+      // (in the DCSA clusters, all nodes are deployed at the same time).  Additionally, we
+      // periodically recheck
+      // the subscriptions to verify that they are correct.  This should ensure self-healing if the
+      // initial round
+      // fails provided that the setup can recover from the error.
+      initialDelayString = "PT1M",
+      fixedDelayString = "PT1H")
+  void checkSubscriptions() {
+    if (StringUtils.isNotEmpty(clientID) && StringUtils.isNotEmpty(tokenUri)) {
+      log.info("Checking that all managed subscriptions are up to date");
+      // TODO: We ought to remove "unknown" managed subscriptions.
+      notificationEndpointRepository
+          .removeIncompletelySetupEndpoints()
+          .thenMany(Flux.fromIterable(subscriptionsConfiguration.getSubscriptions().entrySet()))
+          .filter(entry -> !checkedSubscriptions.contains(entry.getKey()))
+          .concatMap(
+              entry -> {
+                String reference = entry.getKey();
+                Subscription subscription = entry.getValue();
+                BiFunction<
+                        URI,
+                        NotificationEndpoint,
+                        SubscriberFunction<Map<String, Object>, Map<String, Object>>>
+                    subscriberFunctionProvider =
+                        (callbackUrl, notificationEndpoint) -> {
+                          assert notificationEndpoint.getSubscriptionID() == null
+                              || notificationEndpoint.getSubscriptionURL().equals("");
 
-                        return SubscriberFunction.of(
-                                subscription.getPublisherBaseURI(),
-                                notificationEndpoint.getSubscriptionID(),
-                                subscription.getAttributeProvider()
-                        );
-                    };
+                          return SubscriberFunction.of(
+                              subscription.getPublisherBaseURI(),
+                              notificationEndpoint.getSubscriptionID(), dcsaWebClient);
+                        };
 
-                    return notificationEndpointRepository.findByEndpointReference(reference)
-                            .flatMap(ep -> {
-                                URI callbackUrl = callbackUrlForEndpoint(ep);
-                                SubscriberFunction<Map<String, Object>, Map<String, Object>> subscriberFunction = subscriberFunctionProvider.apply(
-                                        callbackUrl,
-                                        ep
-                                );
-                                Map<String, Object> eventSubscription = subscription.asSubscription();
-                                eventSubscription.put("subscriptionID", ep.getSubscriptionID());
-                                eventSubscription.put("callbackUrl", callbackUrl);
-                                return subscriberFunction.updateSubscription(eventSubscription)
+                return notificationEndpointRepository
+                    .findByEndpointReference(reference)
+                    .flatMap(
+                        ep -> {
+                          URI callbackUrl = callbackUrlForEndpoint(ep);
+                          SubscriberFunction<Map<String, Object>, Map<String, Object>>
+                              subscriberFunction =
+                                  subscriberFunctionProvider.apply(callbackUrl, ep);
+                          Map<String, Object> eventSubscription = subscription.asSubscription();
+                          eventSubscription.put("subscriptionID", ep.getSubscriptionID());
+                          eventSubscription.put("callbackUrl", callbackUrl);
+                          return subscriberFunction
+                              .updateSubscription(eventSubscription)
+                              .thenReturn(ep)
+                              .onErrorResume(
+                                  SubscriberFunction.SubscriptionEndpointNotFoundException.class,
+                                  e -> {
+                                    if (ep.getSubscriptionID() != null) {
+                                      log.info(
+                                          "Found endpoint "
+                                              + ep.getEndpointID()
+                                              + " with subscription ID "
+                                              + ep.getEndpointID()
+                                              + ", but remote server does not recognise that ID.  Discarding it.");
+                                      return notificationEndpointRepository
+                                          .delete(ep)
+                                          .then(Mono.empty());
+                                    }
+                                    // This should not happen, but lets not pretend we can fix it.
+                                    return Mono.error(e);
+                                  })
+                              .flatMap(
+                                  e -> {
+                                    if (e.getSubscriptionID() == null) {
+                                      return Mono.empty();
+                                    }
+                                    return subscriberFunction
+                                        .updateSecret(e.getSecret())
                                         .thenReturn(ep)
-                                        .onErrorResume(SubscriberFunction.SubscriptionEndpointNotFoundException.class, e -> {
-                                            if (ep.getSubscriptionID() != null) {
-                                                log.info("Found endpoint " + ep.getEndpointID() + " with subscription ID " + ep.getEndpointID()
-                                                        + ", but remote server does not recognise that ID.  Discarding it.");
-                                                return notificationEndpointRepository.delete(ep)
-                                                        .then(Mono.empty());
-                                            }
-                                            // This should not happen, but lets not pretend we can fix it.
-                                            return Mono.error(e);
-                                        })
-                                        .flatMap(e -> {
-                                            if (e.getSubscriptionID() == null) {
-                                                return Mono.empty();
-                                            }
-                                            return subscriberFunction.updateSecret(e.getSecret())
-                                                    .thenReturn(ep)
-                                                    .doOnSuccess(es -> log.info("Successfully updated existing subscription " + reference));
-                                        });
-                            })
-                            .switchIfEmpty(setupSubscription((notificationEndpoint) -> {
-                                notificationEndpoint.setEndpointReference(reference);
-                                notificationEndpoint.setManagedEndpoint(true);
-                                // dummy value for now; will be replaced when setup is done (needed due to constraints)
-                                notificationEndpoint.setSubscriptionURL("");
-                            }, subscriberFunctionProvider, (callbackUrl, notificationEndpoint) -> {
-                                Map<String, Object> eventSubscription = subscription.asSubscription();
-                                byte[] secret = notificationEndpoint.getSecret();
-                                assert secret != null && secret.length > 0;
-                                eventSubscription.put("callbackUrl", callbackUrl);
-                                eventSubscription.put("secret", secret);
-                                return eventSubscription;
-                            })
-                                .doOnSuccess(es -> log.info("Successfully setup subscription " + reference))
-                            ).doOnNext(es -> checkedSubscriptions.add(es.getEndpointReference()))
-                            .doOnNext(es -> {
-                                if (checkedSubscriptions.size() == subscriptionsConfiguration.getSubscriptions().size()) {
-                                    log.info("All configured/managed subscriptions has been handled");
-                                }
-                            });
-
-                })
-                .then()
-                .block();
-
+                                        .doOnSuccess(
+                                            es ->
+                                                log.info(
+                                                    "Successfully updated existing subscription "
+                                                        + reference));
+                                  });
+                        })
+                    .switchIfEmpty(
+                        setupSubscription(
+                                (notificationEndpoint) -> {
+                                  notificationEndpoint.setEndpointReference(reference);
+                                  notificationEndpoint.setManagedEndpoint(true);
+                                  // dummy value for now; will be replaced when setup is done
+                                  // (needed due to constraints)
+                                  notificationEndpoint.setSubscriptionURL("");
+                                },
+                                subscriberFunctionProvider,
+                                (callbackUrl, notificationEndpoint) -> {
+                                  Map<String, Object> eventSubscription =
+                                      subscription.asSubscription();
+                                  byte[] secret = notificationEndpoint.getSecret();
+                                  assert secret != null && secret.length > 0;
+                                  eventSubscription.put("callbackUrl", callbackUrl);
+                                  eventSubscription.put("secret", secret);
+                                  return eventSubscription;
+                                })
+                            .doOnSuccess(
+                                es -> log.info("Successfully setup subscription " + reference)))
+                    .doOnNext(es -> checkedSubscriptions.add(es.getEndpointReference()))
+                    .doOnNext(
+                        es -> {
+                          if (checkedSubscriptions.size()
+                              == subscriptionsConfiguration.getSubscriptions().size()) {
+                            log.info("All configured/managed subscriptions has been handled");
+                          }
+                        });
+              })
+          .then()
+          .block();
+    } else {
+      log.info(
+          "Auto subscriptions disabled as both client id and token uri are required to be set.");
     }
+  }
 }

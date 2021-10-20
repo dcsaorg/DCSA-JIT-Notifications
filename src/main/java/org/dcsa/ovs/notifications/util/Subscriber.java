@@ -8,18 +8,23 @@ import reactor.core.publisher.Mono;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
-import java.util.function.Consumer;
 
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-@AllArgsConstructor(access = AccessLevel.PACKAGE)
 public class Subscriber<S, U> implements SubscriberFunction<S, U> {
 
     @NonNull
     @Getter
     private final URI subscriptionBaseURI;
+
     private String subscriptionID;
-    @NonNull
-    private final Consumer<Map<String, Object>> attributesProvider;
+
+    private WebClient webClient;
+
+    public Subscriber(@NonNull URI subscriptionBaseURI, String subscriptionID, WebClient webClient) {
+        this.subscriptionBaseURI = subscriptionBaseURI;
+        this.subscriptionID = subscriptionID;
+        this.webClient = webClient;
+    }
 
     public Mono<Void> updateSecret(byte[] secret) {
         if (subscriptionID == null) {
@@ -67,13 +72,9 @@ public class Subscriber<S, U> implements SubscriberFunction<S, U> {
     }
 
     private <P> Mono<String> invoke(HttpMethod httpMethod, URI subscriptionURI, P payload, String action, boolean expectedNoContent) {
-        WebClient webClient = WebClient.builder()
-                .defaultHeader("Content-Type", "application/json")
-                .build();
 
         return webClient.method(httpMethod)
                 .uri(subscriptionURI)
-                .attributes(this.attributesProvider)
                 .bodyValue(payload)
                 .exchangeToMono(clientResponse -> {
                     switch (clientResponse.statusCode()) {
