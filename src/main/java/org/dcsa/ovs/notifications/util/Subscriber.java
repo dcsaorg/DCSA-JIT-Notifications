@@ -9,7 +9,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
+@AllArgsConstructor(access = AccessLevel.PACKAGE)
 public class Subscriber<S, U> implements SubscriberFunction<S, U> {
 
     @NonNull
@@ -18,13 +18,7 @@ public class Subscriber<S, U> implements SubscriberFunction<S, U> {
 
     private String subscriptionID;
 
-    private WebClient webClient;
-
-    public Subscriber(@NonNull URI subscriptionBaseURI, String subscriptionID, WebClient webClient) {
-        this.subscriptionBaseURI = subscriptionBaseURI;
-        this.subscriptionID = subscriptionID;
-        this.webClient = webClient;
-    }
+    private final WebClient webClient;
 
     public Mono<Void> updateSecret(byte[] secret) {
         if (subscriptionID == null) {
