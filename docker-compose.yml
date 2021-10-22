@@ -1,8 +1,11 @@
 version: '3.5'
 services:
-    dcsa-ovs-notifications:
+    web:
+        environment:
+            - DB_HOSTNAME=db
+        container_name: dcsa-ovs-notifications
         build:
-           .
+            .
         ports:
             - 9090:9090
         logging:
@@ -10,7 +13,7 @@ services:
                 max-file: '10'
                 max-size: 200k
 
-    dcsa-test-db:
+    db:
         container_name: dcsa_db
         environment:
             POSTGRES_PASSWORD: "change_this_password"
