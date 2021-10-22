@@ -76,6 +76,10 @@ springdoc:
     path: /docs
 
 dcsa:
+  # External base URL (i.e. what will someone use to call this application).  Useful for generating URLs when we do not
+  # have a concrete HTTP request to use as basis.
+  baseUrl: "https://localhost:9090"
+  notificationBaseUrl: "${dcsa.baseUrl}${spring.webflux.base-path}${dcsa.securityConfig.receiveNotificationEndpoint}/receive"
   securityConfig:
     receiveNotificationEndpoint: "/notification-endpoints"
   webui:
