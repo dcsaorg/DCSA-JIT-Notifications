@@ -1,4 +1,4 @@
-name: DCSA-BKG DEV CI
+name: DCSA-OVS-Notifications DEV CI
 
 on:
   push:
@@ -56,7 +56,7 @@ jobs:
           submodules: recursive
 
       - name: Build OVS Notifications
-        run: cd DCSA-OVS-Notifications && mvn package -Ddcsa.events.version=$DCSA_EVENT_CORE_PROJECT_VERSION -Ddcsa.event.tag=dev-bkg -Ddcsa.artifacttype=-SNAPSHOT
+        run: cd DCSA-OVS-Notifications && mvn package -Ddcsa.version=$DCSA_CORE_PROJECT_VERSION -Ddcsa.core.tag=dev-ovs-notifications -Ddcsa.events.version=$DCSA_EVENT_CORE_PROJECT_VERSION -Ddcsa.event.tag=dev-ovs-notifications -Ddcsa.artifacttype=-SNAPSHOT
 
       - name: Build and run the microservices
         run: cd DCSA-OVS-Notifications && docker-compose -f docker-compose.yml up -d -V
@@ -70,11 +70,11 @@ jobs:
       - name: Confirm microservice status
         if: ${{ steps.healthcheck.outputs.STATUS == 'UP' }}
         run: |
-            echo "The DCSA-BKG service is UP."
+            echo "The DCSA-OVS-Notifications service is UP."
 
       - name: Confirm microservice status
         if: ${{ steps.healthcheck.outputs.STATUS != 'UP' }}
         uses: actions/github-script@v3
         with:
           script: |
-           core.setFailed('The DCSA-BKG service is down.')
+           core.setFailed('The DCSA-OVS-Notifications service is down.')
