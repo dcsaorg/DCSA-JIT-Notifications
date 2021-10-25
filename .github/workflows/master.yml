@@ -1,6 +1,9 @@
 name: DCSA-OVS-Notifications MASTER CI
 
 on:
+  pull_request:
+    branches:
+      - master
   push:
     branches:
       - master
