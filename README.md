@@ -1,6 +1,6 @@
 # DCSA-OVS-Notifications
 
-![DCSA-DCSA-OVS-Notifications MASTER](https://github.com/dcsaorg/DCSA-OVS-Notifications/actions/workflows/master.yml/badge.svg?branch=master) ![DCSA-OVS-Notifications DEV](https://github.com/dcsaorg/DCSA-OVS-Notifications/actions/workflows/dev.yml/badge.svg?branch=dev)
+![DCSA-OVS-Notifications MASTER](https://github.com/dcsaorg/DCSA-OVS-Notifications/actions/workflows/master.yml/badge.svg?branch=master) ![DCSA-OVS-Notifications DEV](https://github.com/dcsaorg/DCSA-OVS-Notifications/actions/workflows/dev.yml/badge.svg?branch=dev)
 
 ------------------------------------------------------------------------------------------------------------------------
 
