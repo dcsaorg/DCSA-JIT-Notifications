@@ -113,6 +113,9 @@ logging:
         r2dbc: INFO
 
 management:
+  health:
+    mail:
+      enabled: false
   endpoint:
     health:
       probes:
