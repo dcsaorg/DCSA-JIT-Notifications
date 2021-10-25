@@ -161,8 +161,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                     )
                                     .flatMap(ignored ->
                                             event instanceof OperationsEvent
-                                                    ? Mono.just((OperationsEvent)event)
-                                                    .flatMap(timestampDefinitionService::markOperationsEventAsTimestamp)
+                                                    ? timestampDefinitionService.markOperationsEventAsTimestamp((OperationsEvent)event)
                                                     .thenReturn(event)
                                                     : Mono.just(event)
                                             )
