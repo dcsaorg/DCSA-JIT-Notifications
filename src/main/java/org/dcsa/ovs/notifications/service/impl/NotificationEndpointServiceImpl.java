@@ -6,10 +6,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.dcsa.core.events.model.Event;
+import org.dcsa.core.events.model.OperationsEvent;
 import org.dcsa.core.events.model.TransportCallBasedEvent;
 import org.dcsa.core.events.model.enums.SignatureMethod;
 import org.dcsa.core.events.model.transferobjects.TransportCallTO;
 import org.dcsa.core.events.service.GenericEventService;
+import org.dcsa.core.events.service.OperationsEventService;
+import org.dcsa.core.events.service.TimestampDefinitionService;
 import org.dcsa.core.events.service.TransportCallTOService;
 import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.core.exception.CreateException;
@@ -76,6 +79,9 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     @Value("${spring.security.oauth2.client.provider.dcsaclient.token-uri:}")
     private String tokenUri;
 
+    private final OperationsEventService operationsEventService;
+    private final TimestampDefinitionService timestampDefinitionService;
+
     @Override
     protected Mono<NotificationEndpoint> preSaveHook(NotificationEndpoint notificationEndpoint) {
         byte[] secret = notificationEndpoint.getSecret();
@@ -141,6 +147,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                         if (event instanceof TransportCallBasedEvent) {
                             TransportCallBasedEvent tcbe = (TransportCallBasedEvent)event;
                             TransportCallTO transportCallTO = tcbe.getTransportCall();
+
                             result = result.then(transportCallTOService.findById(transportCallTO.getTransportCallID()))
                                     .switchIfEmpty(transportCallTOService.create(transportCallTO))
                                     .doOnNext(((TransportCallBasedEvent) event)::setTransportCall)
@@ -151,8 +158,15 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                             .flatMap(savedEvent -> timestampNotificationMailService.sendEmailNotificationsForEvent(event)
                                                     .then(Mono.just(event))
                                             )
-                                    ).thenReturn(event);
-
+                                    )
+                                    .flatMap(ignored ->
+                                            event instanceof OperationsEvent
+                                                    ? Mono.just((OperationsEvent)event)
+                                                    .flatMap(timestampDefinitionService::markOperationsEventAsTimestamp)
+                                                    .thenReturn(event)
+                                                    : Mono.just(event)
+                                            )
+                                    .thenReturn(event);
                         }
                     }
                     return result.then();
