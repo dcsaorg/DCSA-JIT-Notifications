@@ -6,7 +6,7 @@ RUN apt-get update \
         openjdk-11-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 9090
+EXPOSE 9092
 ENV DB_HOSTNAME db
 COPY run-in-container.sh /run.sh
 RUN chmod +x /run.sh
