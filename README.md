@@ -35,7 +35,7 @@ docker-compose up -d -V --build
 
 6) Verify if the application is running,
 ```
-curl http://localhost:9090/v2/actuator/health
+curl http://localhost:9092/v2/actuator/health
 ```
 ------------------------------------------------------------------------------------------------------------------------
 ### DEVELOPMENT FLOW
