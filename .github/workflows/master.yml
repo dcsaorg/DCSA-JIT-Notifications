@@ -1,6 +1,12 @@
-name: Microservices CI
+name: DCSA-OVS-Notifications MASTER CI
 
-on: [push]
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
 
 jobs:
   build:
@@ -29,8 +35,25 @@ jobs:
         servers: '[{ "id": "github", "username": "${{ secrets.DCSA_USER }}", "password": "${{ secrets.DCSA_PACKAGES_PAT }}" }]'
 
     - name: Build API
-      run: cd DCSA-OVS-Notifications && mvn package -DskipTests -X #Need to skip the tests as they depend on a running DB
+      run: cd DCSA-OVS-Notifications && mvn package -X
 
     - name: Run the OVS Notifications microservice plus database
       run: cd DCSA-OVS-Notifications && docker-compose -f docker-compose.yml up -d -V
-      
+
+    - name: Fetch Backend Status
+      run: |
+        sleep 10
+        echo "::set-output name=STATUS::$(curl -s http://localhost:9092/v2/actuator/health | jq -r '.status')"
+      id: healthcheck
+
+    - name: Confirm microservice status
+      if: ${{ steps.healthcheck.outputs.STATUS == 'UP' }}
+      run: |
+        echo "The DCSA-OVS-Notifications service is UP."
+
+    - name: Confirm microservice status
+      if: ${{ steps.healthcheck.outputs.STATUS != 'UP' }}
+      uses: actions/github-script@v3
+      with:
+        script: |
+          core.setFailed('The DCSA-OVS-Notifications service is down.')

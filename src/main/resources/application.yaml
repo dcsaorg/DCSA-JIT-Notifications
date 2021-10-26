@@ -28,7 +28,7 @@ spring:
   application:
     name: DCSA-Backend
   r2dbc:
-    url: r2dbc:postgresql://${db_hostname}
+    url: r2dbc:postgresql://${DB_HOSTNAME:localhost:5432}
     name: dcsa_openapi
     properties:
       schema: dcsa_im_v3_0
@@ -63,17 +63,6 @@ spring:
             # We use a strict default.
             enable: true
             required: true
-
-auth0:
-  audience: localhost
-  enabled: false
-
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    # swagger-ui custom path
-    path: /docs
 
 dcsa:
   # External base URL (i.e. what will someone use to call this application).  Useful for generating URLs when we do not
@@ -124,6 +113,9 @@ logging:
         r2dbc: INFO
 
 management:
+  health:
+    mail:
+      enabled: false
   endpoint:
     health:
       probes:
