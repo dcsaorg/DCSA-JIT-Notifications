@@ -42,7 +42,7 @@ jobs:
 
     - name: Fetch Backend Status
       run: |
-        sleep 10
+        sleep 15
         echo "::set-output name=STATUS::$(curl -s http://localhost:9092/v2/actuator/health | jq -r '.status')"
       id: healthcheck
 
@@ -52,8 +52,13 @@ jobs:
         echo "The DCSA-OVS-Notifications service is UP."
 
     - name: Confirm microservice status
-      if: ${{ steps.healthcheck.outputs.STATUS != 'UP' }}
+      if: ${{ steps.healthcheck.outputs.STATUS == 'DOWN' }}
       uses: actions/github-script@v3
       with:
         script: |
           core.setFailed('The DCSA-OVS-Notifications service is down.')
+
+    - name: Print microservice logs if status is undefined
+      if: ${{ steps.healthcheck.outputs.STATUS != 'UP' &&  steps.healthcheck.outputs.STATUS != 'DOWN'}}
+      run: |
+        echo "==== OVS Notifications logs ====" ; docker logs -t dcsa-ovs-notifications; exit 1
