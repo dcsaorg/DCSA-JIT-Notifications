@@ -11,7 +11,6 @@ import org.dcsa.core.events.model.TransportCallBasedEvent;
 import org.dcsa.core.events.model.enums.SignatureMethod;
 import org.dcsa.core.events.model.transferobjects.TransportCallTO;
 import org.dcsa.core.events.service.GenericEventService;
-import org.dcsa.core.events.service.OperationsEventService;
 import org.dcsa.core.events.service.TimestampDefinitionService;
 import org.dcsa.core.events.service.TransportCallTOService;
 import org.dcsa.core.events.service.impl.MessageSignatureHandler;
@@ -79,7 +78,6 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     @Value("${spring.security.oauth2.client.provider.dcsaclient.token-uri:}")
     private String tokenUri;
 
-    private final OperationsEventService operationsEventService;
     private final TimestampDefinitionService timestampDefinitionService;
 
     @Override
