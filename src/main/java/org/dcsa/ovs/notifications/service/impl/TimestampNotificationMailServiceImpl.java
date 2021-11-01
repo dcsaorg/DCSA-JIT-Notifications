@@ -80,7 +80,7 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
     // These are substitution variables that have a "constant" definition.  The sendEmail code also has
     // a separate map for "runtime" (configuration derived) variables.
     private static final Map<String, Function<OperationsEvent, Object>> SUBST_VARS = Map.ofEntries(
-            Map.entry("TIMESTAMP_TYPE", OperationsEvent::getTimestampTypeName),
+            Map.entry("TIMESTAMP_TYPE", (oe) -> "TODO: THIS" ), // TODO: Fix as part of DDT-520
             Map.entry("VESSEL_NAME", (oe) -> oe.getTransportCall().getVessel().getVesselName()),
             Map.entry("VESSEL_IMO_NUMBER", (oe) -> oe.getTransportCall().getVessel().getVesselIMONumber())
     );
