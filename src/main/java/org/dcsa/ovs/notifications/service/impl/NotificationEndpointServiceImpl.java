@@ -164,15 +164,11 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                                 } catch (IllegalStateException e) {
                                                     return Mono.error(new CreateException("Cannot derive portCallPhaseTypeCode automatically from this timestamp. Please define it explicitly"));
                                                 }
-                                                if(((OperationsEvent) event).getPortCallPhaseTypeCode() == null){
-                                                        return Mono.error(new CreateException("Cannot derive portCallPhaseTypeCode automatically from this timestamp. Please define it explicitly"));
-                                                }
-                                                return Mono.just(timestampDefinitionService.markOperationsEventAsTimestamp((OperationsEvent) event));
+                                                return timestampDefinitionService.markOperationsEventAsTimestamp((OperationsEvent) event);
                                             }else {
                                              return Mono.just(event);
                                             }
-                                    })
-                                    .thenReturn(event);
+                                    });
                         }
                     }
                     return result.then();
