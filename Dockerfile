@@ -11,5 +11,5 @@ ENV db_hostname dcsa_db
 COPY run-in-container.sh /run.sh
 RUN chmod +x /run.sh
 COPY src/main/resources/application.yaml .
-COPY target/dcsa-ovs-notifications-*.jar .
+COPY target/dcsa-jit-notifications-*.jar .
 CMD ["/run.sh"]

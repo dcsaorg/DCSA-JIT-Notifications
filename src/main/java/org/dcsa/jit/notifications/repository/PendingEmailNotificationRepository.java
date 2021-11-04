@@ -1,8 +1,7 @@
-package org.dcsa.ovs.notifications.repository;
+package org.dcsa.jit.notifications.repository;
 
 import org.dcsa.core.repository.ExtendedRepository;
-import org.dcsa.ovs.notifications.model.NotificationEndpoint;
-import org.dcsa.ovs.notifications.model.PendingEmailNotification;
+import org.dcsa.jit.notifications.model.PendingEmailNotification;
 import org.springframework.data.r2dbc.repository.Query;
 import reactor.core.publisher.Mono;
 

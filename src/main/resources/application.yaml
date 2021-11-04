@@ -41,7 +41,7 @@ spring:
         jwt:
           issuer-uri: https://dcsa.eu.auth0.com/
   webflux:
-    base-path: ${dcsa.url.prefix:}/v2
+    base-path: ${dcsa.url.prefix:}/v1
   mail:
     # Syntactically correct host name that will fail to resolve
     # in DNS.  The hostname should be guide most admins to the
@@ -102,7 +102,7 @@ dcsa:
           <p>Please go to <a href="{{WEB_UI_BASE_URI}}/transportcall/{{TRANSPORT_CALL_ID}}">{{WEB_UI_BASE_URI}}/transportcall/{{TRANSPORT_CALL_ID}}</a> and respond to the timestamp.</p>
 
   pendingEventService:
-    # DCSA-OVS will process these.
+    # DCSA-JIT will process these.
     enabled: false
     backgroundTasks:
       processUnmappedEventQueue:

@@ -9,7 +9,7 @@ jobs:
     - name: Fetch backend
       uses: actions/checkout@v2
       with:
-        path: DCSA-OVS-Notifications
+        path: DCSA-JIT-Notifications
         submodules: recursive
     - name: Set up Java JDK
       uses: actions/setup-java@v1
@@ -29,8 +29,8 @@ jobs:
         servers: '[{ "id": "github", "username": "${{ secrets.DCSA_USER }}", "password": "${{ secrets.DCSA_PACKAGES_PAT }}" }]'
 
     - name: Build API
-      run: cd DCSA-OVS-Notifications && mvn package -DskipTests -X #Need to skip the tests as they depend on a running DB
+      run: cd DCSA-JIT-Notifications && mvn package -DskipTests -X #Need to skip the tests as they depend on a running DB
 
-    - name: Run the OVS Notifications microservice plus database
-      run: cd DCSA-OVS-Notifications && docker-compose -f docker-compose.yml up -d -V
+    - name: Run the JIT Notifications microservice plus database
+      run: cd DCSA-JIT-Notifications && docker-compose -f docker-compose.yml up -d -V
       

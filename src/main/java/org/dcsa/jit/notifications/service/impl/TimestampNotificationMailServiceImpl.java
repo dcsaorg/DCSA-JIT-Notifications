@@ -1,17 +1,17 @@
-package org.dcsa.ovs.notifications.service.impl;
+package org.dcsa.jit.notifications.service.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.dcsa.core.events.model.*;
+import org.dcsa.core.events.model.Event;
+import org.dcsa.core.events.model.OperationsEvent;
 import org.dcsa.core.events.model.enums.EventType;
-import org.dcsa.core.events.repository.TimestampDefinitionRepository;
 import org.dcsa.core.events.service.OperationsEventService;
-import org.dcsa.ovs.notifications.model.MailConfiguration;
-import org.dcsa.ovs.notifications.model.MailTemplate;
-import org.dcsa.ovs.notifications.model.PendingEmailNotification;
-import org.dcsa.ovs.notifications.repository.PendingEmailNotificationRepository;
-import org.dcsa.ovs.notifications.service.TimestampNotificationMailService;
+import org.dcsa.jit.notifications.model.MailConfiguration;
+import org.dcsa.jit.notifications.model.MailTemplate;
+import org.dcsa.jit.notifications.model.PendingEmailNotification;
+import org.dcsa.jit.notifications.repository.PendingEmailNotificationRepository;
+import org.dcsa.jit.notifications.service.TimestampNotificationMailService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;

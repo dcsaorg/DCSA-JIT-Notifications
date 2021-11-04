@@ -1,4 +1,4 @@
-package org.dcsa.ovs.notifications.model;
+package org.dcsa.jit.notifications.model;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
