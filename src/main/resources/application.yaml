@@ -96,7 +96,7 @@ dcsa:
         onlyForEventClassifierCode:
           - EST
           - REQ
-        primaryReceivers:
+        onlyWhenPrimaryReceiverIs:
           - CA
           - VSL
         subject: Response requested on timestamp from vessel {{VESSEL_NAME}}.

@@ -162,7 +162,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                                         return Mono.error(new CreateException("Cannot derive portCallPhaseTypeCode automatically from this timestamp. Please define it explicitly"));
                                                     }
                                                     return timestampDefinitionService.markOperationsEventAsTimestamp((OperationsEvent) event);
-                                                }else {
+                                                }  else {
                                                     return Mono.just(event);
                                                 }
                                             })
