@@ -27,7 +27,7 @@ public class MailTemplate {
 
     private Set<EventType> onlyForEventType;
 
-    private Set<PartyFunction> primaryReceivers;
+    private Set<PartyFunction> onlyWhenPrimaryReceiverIs;
 
     public boolean appliesToEvent(Event event, TimestampDefinition timestampDefinition) {
         if (!onlyForEventType.isEmpty() && !onlyForEventType.contains(event.getEventType())) {
@@ -36,7 +36,7 @@ public class MailTemplate {
         if (!onlyForEventClassifierCode.isEmpty() && !onlyForEventClassifierCode.contains(event.getEventClassifierCode())) {
             return false;
         }
-        if( !primaryReceivers.isEmpty() && (timestampDefinition == null || !primaryReceivers.contains(timestampDefinition.getPrimaryReceiver()))){
+        if(!onlyWhenPrimaryReceiverIs.isEmpty() && (timestampDefinition == null || !onlyWhenPrimaryReceiverIs.contains(timestampDefinition.getPrimaryReceiver()))) {
             return false;
         }
         return true;
