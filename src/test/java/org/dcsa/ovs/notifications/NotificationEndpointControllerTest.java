@@ -1,9 +1,9 @@
-package org.dcsa.ovs.notifications;
+package org.dcsa.jit.notifications;
 
 import org.dcsa.core.extendedrequest.ExtendedParameters;
-import org.dcsa.ovs.notifications.controller.NotificationEndpointController;
-import org.dcsa.ovs.notifications.model.NotificationEndpoint;
-import org.dcsa.ovs.notifications.service.NotificationEndpointService;
+import org.dcsa.jit.notifications.controller.NotificationEndpointController;
+import org.dcsa.jit.notifications.model.NotificationEndpoint;
+import org.dcsa.jit.notifications.service.NotificationEndpointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

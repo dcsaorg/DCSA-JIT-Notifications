@@ -1,4 +1,4 @@
-package org.dcsa.ovs.notifications.service.impl;
+package org.dcsa.jit.notifications.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,13 +16,13 @@ import org.dcsa.core.events.service.TransportCallTOService;
 import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.core.exception.CreateException;
 import org.dcsa.core.service.impl.ExtendedBaseServiceImpl;
-import org.dcsa.ovs.notifications.model.NotificationEndpoint;
-import org.dcsa.ovs.notifications.model.Subscription;
-import org.dcsa.ovs.notifications.model.SubscriptionsConfiguration;
-import org.dcsa.ovs.notifications.repository.NotificationEndpointRepository;
-import org.dcsa.ovs.notifications.service.NotificationEndpointService;
-import org.dcsa.ovs.notifications.service.TimestampNotificationMailService;
-import org.dcsa.ovs.notifications.util.SubscriberFunction;
+import org.dcsa.jit.notifications.model.NotificationEndpoint;
+import org.dcsa.jit.notifications.model.Subscription;
+import org.dcsa.jit.notifications.model.SubscriptionsConfiguration;
+import org.dcsa.jit.notifications.repository.NotificationEndpointRepository;
+import org.dcsa.jit.notifications.service.NotificationEndpointService;
+import org.dcsa.jit.notifications.service.TimestampNotificationMailService;
+import org.dcsa.jit.notifications.util.SubscriberFunction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;

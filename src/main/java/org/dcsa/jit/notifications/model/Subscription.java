@@ -1,4 +1,4 @@
-package org.dcsa.ovs.notifications.model;
+package org.dcsa.jit.notifications.model;
 
 import lombok.Data;
 import org.dcsa.core.events.model.enums.EventType;

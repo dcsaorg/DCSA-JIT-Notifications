@@ -1,4 +1,4 @@
-package org.dcsa.ovs.notifications.config;
+package org.dcsa.jit.notifications.config;
 
 import org.dcsa.core.repository.ExtendedRepositoryImpl;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
