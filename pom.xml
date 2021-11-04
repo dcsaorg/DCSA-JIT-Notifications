@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>org.dcsa</groupId>
-	<artifactId>dcsa-ovs-notifications</artifactId>
+	<artifactId>dcsa-jit-notifications</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>DCSA-jit-notifications</name>
