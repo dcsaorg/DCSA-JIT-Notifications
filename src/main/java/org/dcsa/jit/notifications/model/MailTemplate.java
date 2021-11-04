@@ -2,8 +2,10 @@ package org.dcsa.jit.notifications.model;
 
 import lombok.Data;
 import org.dcsa.core.events.model.Event;
+import org.dcsa.core.events.model.TimestampDefinition;
 import org.dcsa.core.events.model.enums.EventClassifierCode;
 import org.dcsa.core.events.model.enums.EventType;
+import org.dcsa.core.events.model.enums.PartyFunction;
 
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
@@ -25,11 +27,16 @@ public class MailTemplate {
 
     private Set<EventType> onlyForEventType;
 
-    public boolean appliesToEvent(Event event) {
+    private Set<PartyFunction> primaryReceivers;
+
+    public boolean appliesToEvent(Event event, TimestampDefinition timestampDefinition) {
         if (!onlyForEventType.isEmpty() && !onlyForEventType.contains(event.getEventType())) {
             return false;
         }
         if (!onlyForEventClassifierCode.isEmpty() && !onlyForEventClassifierCode.contains(event.getEventClassifierCode())) {
+            return false;
+        }
+        if( !primaryReceivers.isEmpty() && (timestampDefinition == null || !primaryReceivers.contains(timestampDefinition.getPrimaryReceiver()))){
             return false;
         }
         return true;
