@@ -255,7 +255,7 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
                                 .doOnNext(oe -> oe.setEventType(EventType.OPERATIONS))
                                 .flatMap( oe ->
                                         Mono.zip(operationsEventService.loadRelatedEntities(oe),
-                                                        this.mapTimestampTypeName(oe)
+                                                timestampDefinitionRepository.findTimestampDefinitionById(oe.getEventID())
                                 ))
                                 .flatMap(tuple -> this.sendEmail(pendingMessage.getTemplateName(), tuple.getT1(), tuple.getT2()))
                 )
@@ -327,9 +327,5 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
         UnknownTemplateKeyException(String key) {
             super(key);
         }
-    }
-
-    private Mono<TimestampDefinition> mapTimestampTypeName(OperationsEvent oe) {
-        return timestampDefinitionRepository.findTimestampDefinitionById(oe.getEventID());
     }
 }
