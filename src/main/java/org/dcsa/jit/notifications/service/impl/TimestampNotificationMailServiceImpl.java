@@ -135,11 +135,11 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
     }
 
     @Override
-    public Flux<PendingEmailNotification> sendEmailNotificationsForEvent(Event event) {
+    public Flux<PendingEmailNotification> sendEmailNotificationsForEvent(Event event, TimestampDefinition timestampDefinition) {
         return Flux.fromIterable(mailConfiguration.getTemplates().keySet())
                 .filter(templateName -> {
                     MailTemplate template = mailConfiguration.getTemplate(templateName);
-                    if (!template.appliesToEvent(event)) {
+                    if (!template.appliesToEvent(event,timestampDefinition)) {
                         return false;
                     }
                     // Except for debugging, we discard emails now without a TO address.  Under debugging, the
@@ -181,7 +181,7 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
             }
         }
 
-        if (!template.appliesToEvent(operationsEvent)) {
+        if (!template.appliesToEvent(operationsEvent,timestampDefinition)) {
             // Should not happen (unless config changes between storing in the DB and sending)
             log.info("Skipping mail notification (" + templateName + "); appliesToEvent rejected message: " + operationsEvent.getEventID());
             return Mono.just(operationsEvent);

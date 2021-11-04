@@ -5,11 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.dcsa.core.events.model.Event;
-import org.dcsa.core.events.model.OperationsEvent;
-import org.dcsa.core.events.model.TransportCallBasedEvent;
+import org.dcsa.core.events.model.*;
 import org.dcsa.core.events.model.enums.SignatureMethod;
 import org.dcsa.core.events.model.transferobjects.TransportCallTO;
+import org.dcsa.core.events.repository.TimestampDefinitionRepository;
 import org.dcsa.core.events.service.GenericEventService;
 import org.dcsa.core.events.service.TimestampDefinitionService;
 import org.dcsa.core.events.service.TransportCallTOService;
@@ -63,6 +62,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     private final SubscriptionsConfiguration subscriptionsConfiguration;
     private final SignatureMethod signatureMethod = SignatureMethod.HMAC_SHA256;
     private final Set<String> checkedSubscriptions = new HashSet<>();
+    private static final TimestampDefinition EMPTY_TIMESTAMPDEFINITION = new TimestampDefinition();
 
     @Autowired
     @Lazy
@@ -79,6 +79,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     private String tokenUri;
 
     private final TimestampDefinitionService timestampDefinitionService;
+    private final TimestampDefinitionRepository timestampDefinitionRepository;
 
     @Override
     protected Mono<NotificationEndpoint> preSaveHook(NotificationEndpoint notificationEndpoint) {
@@ -153,22 +154,27 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                     .flatMap(ignored -> genericEventService.findByEventTypeAndEventID(event.getEventType(), event.getEventID()))
                                     .switchIfEmpty(
                                             genericEventService.create(event)
-                                            .flatMap(savedEvent -> timestampNotificationMailService.sendEmailNotificationsForEvent(event)
+                                            .flatMap(ignored ->{
+                                                if(event instanceof OperationsEvent){
+                                                    try {
+                                                        ((OperationsEvent) event).ensurePhaseTypeIsDefined();
+                                                    } catch (IllegalStateException e) {
+                                                        return Mono.error(new CreateException("Cannot derive portCallPhaseTypeCode automatically from this timestamp. Please define it explicitly"));
+                                                    }
+                                                    return timestampDefinitionService.markOperationsEventAsTimestamp((OperationsEvent) event);
+                                                }else {
+                                                    return Mono.just(event);
+                                                }
+                                            })
+                                                    .flatMap( oe ->
+                                                            Mono.zip(Mono.just(oe),
+                                                                    timestampDefinitionRepository.findTimestampDefinitionById(oe.getEventID())
+                                                                            .switchIfEmpty(Mono.just(EMPTY_TIMESTAMPDEFINITION))
+                                                            ))
+                                            .flatMap(tuple -> timestampNotificationMailService.sendEmailNotificationsForEvent(tuple.getT1(),tuple.getT2())
                                                     .then(Mono.just(event))
                                             )
-                                    )
-                                    .flatMap(ignored ->{
-                                            if(event instanceof OperationsEvent){
-                                                try {
-                                                    ((OperationsEvent) event).ensurePhaseTypeIsDefined();
-                                                } catch (IllegalStateException e) {
-                                                    return Mono.error(new CreateException("Cannot derive portCallPhaseTypeCode automatically from this timestamp. Please define it explicitly"));
-                                                }
-                                                return timestampDefinitionService.markOperationsEventAsTimestamp((OperationsEvent) event);
-                                            }else {
-                                             return Mono.just(event);
-                                            }
-                                    });
+                                    );
                         }
                     }
                     return result.then();
