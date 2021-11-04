@@ -3,15 +3,10 @@ package org.dcsa.ovs.notifications.service.impl;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.dcsa.core.events.model.Event;
-import org.dcsa.core.events.model.EventSubscription;
-import org.dcsa.core.events.model.OperationsEvent;
-import org.dcsa.core.events.model.PendingMessage;
-import org.dcsa.core.events.model.enums.EventClassifierCode;
+import org.dcsa.core.events.model.*;
 import org.dcsa.core.events.model.enums.EventType;
-import org.dcsa.core.events.model.enums.OperationsEventTypeCode;
+import org.dcsa.core.events.repository.TimestampDefinitionRepository;
 import org.dcsa.core.events.service.OperationsEventService;
-import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.ovs.notifications.model.MailConfiguration;
 import org.dcsa.ovs.notifications.model.MailTemplate;
 import org.dcsa.ovs.notifications.model.PendingEmailNotification;
@@ -67,6 +62,7 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
     private final OperationsEventService operationsEventService;
     private final PendingEmailNotificationRepository pendingEmailNotificationRepository;
     private final ReactiveTransactionManager transactionManager;
+    private final TimestampDefinitionRepository timestampDefinitionRepository;
 
     @Value("${dcsa.webui.baseUrl:NOT_SPECIFIED}")
     private String webUIBaseUrl;
@@ -160,7 +156,7 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
                 });
     }
 
-    private Mono<OperationsEvent> sendEmail(String templateName, OperationsEvent operationsEvent) {
+    private Mono<OperationsEvent> sendEmail(String templateName, OperationsEvent operationsEvent, TimestampDefinition timestampDefinition) {
         boolean shouldSendEmail = true;
         if ("NOT_SPECIFIED".equals(mailConfiguration.getFrom())) {
             shouldSendEmail = false;
@@ -193,7 +189,8 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
 
         Map<String, Function<OperationsEvent, Object>> customValues = Map.of(
                 "WEB_UI_BASE_URI", (oe) -> webUIBaseUrl,
-                "TRANSPORT_CALL_ID", (oe) -> oe.getTransportCall().getTransportCallID()
+                "TRANSPORT_CALL_ID", (oe) -> oe.getTransportCall().getTransportCallID(),
+                "TIMESTAMP_TYPE", (oe) -> timestampDefinition.getTimestampTypeName()
         );
         TemplateSubst<OperationsEvent> subst = TemplateSubst.of(
                 operationsEvent,
@@ -256,8 +253,11 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
                         operationsEventService.findById(pendingMessage.getEventID())
                                 // These operations should probably happen directly in the operationsEventService
                                 .doOnNext(oe -> oe.setEventType(EventType.OPERATIONS))
-                                .flatMap(operationsEventService::loadRelatedEntities)
-                                .flatMap(operationsEvent -> this.sendEmail(pendingMessage.getTemplateName(), operationsEvent))
+                                .flatMap( oe ->
+                                        Mono.zip(operationsEventService.loadRelatedEntities(oe),
+                                                        this.mapTimestampTypeName(oe)
+                                ))
+                                .flatMap(tuple -> this.sendEmail(pendingMessage.getTemplateName(), tuple.getT1(), tuple.getT2()))
                 )
                 .doOnSuccess(res -> {
                     if (res != null) {
@@ -327,5 +327,9 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
         UnknownTemplateKeyException(String key) {
             super(key);
         }
+    }
+
+    private Mono<TimestampDefinition> mapTimestampTypeName(OperationsEvent oe) {
+        return timestampDefinitionRepository.findTimestampDefinitionById(oe.getEventID());
     }
 }
