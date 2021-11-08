@@ -62,7 +62,6 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     private final SubscriptionsConfiguration subscriptionsConfiguration;
     private final SignatureMethod signatureMethod = SignatureMethod.HMAC_SHA256;
     private final Set<String> checkedSubscriptions = new HashSet<>();
-    private static final TimestampDefinition EMPTY_TIMESTAMPDEFINITION = new TimestampDefinition();
 
     @Autowired
     @Lazy
@@ -166,14 +165,16 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                                     return Mono.just(event);
                                                 }
                                             })
-                                                    .flatMap( oe ->
+                                                    .flatMap(oe ->
                                                             Mono.zip(Mono.just(oe),
                                                                     timestampDefinitionRepository.findTimestampDefinitionById(oe.getEventID())
-                                                                            .switchIfEmpty(Mono.just(EMPTY_TIMESTAMPDEFINITION))
-                                                            ))
-                                            .flatMap(tuple -> timestampNotificationMailService.sendEmailNotificationsForEvent(tuple.getT1(),tuple.getT2())
-                                                    .then(Mono.just(event))
-                                            )
+                                                                            .map(Optional::of)
+                                                                            .switchIfEmpty(Mono.just(Optional.empty()))
+                                                            )
+                                                    )
+                                                    .flatMap(tuple -> timestampNotificationMailService.sendEmailNotificationsForEvent(tuple.getT1(), tuple.getT2().orElse(null))
+                                                            .then(Mono.just(event))
+                                                    )
                                     );
                         }
                     }

@@ -36,6 +36,7 @@ import javax.mail.internet.MimeMessage;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.regex.MatchResult;
@@ -255,11 +256,14 @@ public class TimestampNotificationMailServiceImpl implements TimestampNotificati
                         operationsEventService.findById(pendingMessage.getEventID())
                                 // These operations should probably happen directly in the operationsEventService
                                 .doOnNext(oe -> oe.setEventType(EventType.OPERATIONS))
-                                .flatMap( oe ->
+                                .flatMap(oe ->
                                         Mono.zip(operationsEventService.loadRelatedEntities(oe),
                                                 timestampDefinitionRepository.findTimestampDefinitionById(oe.getEventID())
-                                ))
-                                .flatMap(tuple -> this.sendEmail(pendingMessage.getTemplateName(), tuple.getT1(), tuple.getT2()))
+                                                        .map(Optional::of)
+                                                        .switchIfEmpty(Mono.just(Optional.empty()))
+                                        )
+                                )
+                                .flatMap(tuple -> this.sendEmail(pendingMessage.getTemplateName(), tuple.getT1(), tuple.getT2().orElse(null)))
                 )
                 .doOnSuccess(res -> {
                     if (res != null) {
