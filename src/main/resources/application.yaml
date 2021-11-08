@@ -96,9 +96,6 @@ dcsa:
         onlyForEventClassifierCode:
           - EST
           - REQ
-        onlyWhenPrimaryReceiverIs:
-          - CA
-          - VSL
         subject: Response requested on timestamp from vessel {{VESSEL_NAME}}.
         body: |
           <p>Vessel {{VESSEL_NAME}} // IMO{{VESSEL_IMO_NUMBER}} registered a new {{TIMESTAMP_TYPE}}. Your response is required.</p>
