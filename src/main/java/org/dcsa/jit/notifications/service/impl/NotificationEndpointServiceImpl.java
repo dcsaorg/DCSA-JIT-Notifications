@@ -14,6 +14,7 @@ import org.dcsa.core.events.service.TimestampDefinitionService;
 import org.dcsa.core.events.service.TransportCallTOService;
 import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.core.exception.CreateException;
+import org.dcsa.core.exception.UpdateException;
 import org.dcsa.core.service.impl.ExtendedBaseServiceImpl;
 import org.dcsa.jit.notifications.model.NotificationEndpoint;
 import org.dcsa.jit.notifications.model.Subscription;
@@ -101,6 +102,9 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
     protected Mono<NotificationEndpoint> preUpdateHook(NotificationEndpoint original, NotificationEndpoint update) {
         if (update.getSecret() == null) {
             update.setSecret(original.getSecret());
+        }
+        if (original.getSubscriptionID() != null && !Objects.equals(original.getSubscriptionID(), update.getSubscriptionID())) {
+            return Mono.error(new UpdateException("Cannot change the subscription ID of an existing endpoint"));
         }
         return super.preUpdateHook(original, update);
     }

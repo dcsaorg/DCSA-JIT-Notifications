@@ -20,7 +20,6 @@ public class NotificationEndpoint {
     private String subscriptionID;
 
     @Column("secret")
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private byte[] secret;
 
     @Column("endpoint_reference")
