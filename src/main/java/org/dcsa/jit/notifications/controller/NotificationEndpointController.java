@@ -40,33 +40,4 @@ public class NotificationEndpointController extends ExtendedBaseController<Notif
         return notificationEndpointService.receiveNotification(request, endpointID);
     }
 
-    @Override
-    @PostMapping
-    public Mono<NotificationEndpoint> create(@Valid @RequestBody NotificationEndpoint t) {
-        return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN));
-    }
-
-    @Override
-    @GetMapping
-    public Flux<NotificationEndpoint> findAll(ServerHttpResponse response, ServerHttpRequest request) {
-        return Flux.error(new ResponseStatusException(HttpStatus.FORBIDDEN));
-    }
-
-    @Override
-    @DeleteMapping
-    public Mono<Void> delete(@RequestBody NotificationEndpoint t) {
-        return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN));
-    }
-
-    @Override
-    @DeleteMapping({"{id}"})
-    public Mono<Void> deleteById(@PathVariable UUID id) {
-        return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN));
-    }
-
-    @Override
-    @PutMapping({"{id}"})
-    public Mono<NotificationEndpoint> update(@PathVariable UUID id, @Valid @RequestBody NotificationEndpoint t) {
-        return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN));
-    }
 }
