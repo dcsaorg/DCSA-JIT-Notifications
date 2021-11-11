@@ -14,6 +14,7 @@ import org.dcsa.core.events.service.TimestampDefinitionService;
 import org.dcsa.core.events.service.TransportCallTOService;
 import org.dcsa.core.events.service.impl.MessageSignatureHandler;
 import org.dcsa.core.exception.CreateException;
+import org.dcsa.core.exception.NotFoundException;
 import org.dcsa.core.exception.UpdateException;
 import org.dcsa.core.service.impl.ExtendedBaseServiceImpl;
 import org.dcsa.jit.notifications.model.NotificationEndpoint;
@@ -183,7 +184,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                         }
                     }
                     return result.then();
-                });
+                }).onErrorResume(NotFoundException.class, e -> Mono.error(new RuntimeException("Got a NotFoundException :'(", e)));
     }
 
     private MessageSignatureHandler.Converter<List<Event>> eventConverter() {
