@@ -152,7 +152,7 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                             TransportCallTO transportCallTO = tcbe.getTransportCall();
 
                             result = result.then(transportCallTOService.findById(transportCallTO.getTransportCallID()))
-                                    .switchIfEmpty(transportCallTOService.create(transportCallTO))
+                                    .onErrorResume(NotFoundException.class, e -> transportCallTOService.create(transportCallTO))
                                     .doOnNext(((TransportCallBasedEvent) event)::setTransportCall)
                                     .doOnNext(tc -> ((TransportCallBasedEvent) event).setTransportCallID(tc.getTransportCallID()))
                                     .flatMap(ignored -> genericEventService.findByEventTypeAndEventID(event.getEventType(), event.getEventID()))
