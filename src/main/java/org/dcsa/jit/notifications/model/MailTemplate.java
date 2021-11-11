@@ -9,6 +9,7 @@ import org.dcsa.core.events.model.enums.PartyFunction;
 
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
+import java.util.Collections;
 import java.util.Set;
 
 @Data
@@ -23,11 +24,11 @@ public class MailTemplate {
     @NotBlank
     private String body;
 
-    private Set<EventClassifierCode> onlyForEventClassifierCode;
+    private Set<EventClassifierCode> onlyForEventClassifierCode = Collections.emptySet();
 
-    private Set<EventType> onlyForEventType;
+    private Set<EventType> onlyForEventType = Collections.emptySet();
 
-    private Set<PartyFunction> onlyWhenPrimaryReceiverIs;
+    private Set<PartyFunction> onlyWhenPrimaryReceiverIs = Collections.emptySet();
 
     public boolean appliesToEvent(Event event, TimestampDefinition timestampDefinition) {
         if (!onlyForEventType.isEmpty() && !onlyForEventType.contains(event.getEventType())) {
