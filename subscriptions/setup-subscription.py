@@ -12,7 +12,10 @@ def _unpack_response(response):
     with response:
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError:
+        except requests.exceptions.HTTPError as e:
+            # Silently re-raise 404s by default
+            if e.response.status_code == 404:
+                raise e
             print(f"Failed - dumping debug - PATH {response.request.path_url}")
             print(response)
             print("REQUEST - HEADERS")
@@ -25,6 +28,8 @@ def _unpack_response(response):
             print(response.content)
             print("End debug")
             raise
+        if response.status_code == 204:
+            return None
         return response.json()
 
 
@@ -49,6 +54,15 @@ def find_or_create_endpoint(base_url, headers, reference):
                              headers=headers,
                              json=payload,
                              )
+    return _unpack_response(response)
+
+
+def delete_endpoint(base_url, headers, endpoint_definition):
+    endpoint_id = endpoint_definition["endpointID"]
+    print(f"DELETE {base_url}/notification-endpoints/f{endpoint_id}")
+    response = requests.delete(base_url + "/notification-endpoints/" + endpoint_id,
+                            headers=headers,
+                            )
     return _unpack_response(response)
 
 
@@ -96,12 +110,21 @@ def handle_subscription(receiver_base_url, receiver_headers, subscriber_base_url
             subscription_url = subscriber_base_url + "/event-subscriptions/" + subscription_id
     if subscription_url == '':
         subscription_url = None
+    subscription_def = None
     if subscription_url is not None:
-        subscription_def = load_subscription(subscription_url, subscriber_headers)
-        subscription_def["vesselIMONumber"] = vessel_imo_number
-        subscription_def["callbackUrl"] = callback_url
-        update_subscription(subscription_url, subscriber_headers, subscription_def)
-    else:
+        try:
+            subscription_def = load_subscription(subscription_url, subscriber_headers)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code != 404:
+                raise
+            delete_endpoint(receiver_base_url, receiver_headers, endpoint_def)
+            endpoint_def = find_or_create_endpoint(receiver_base_url, receiver_headers, receiver_reference)
+            callback_url = receiver_base_url + "/notification-endpoints/receive/" + endpoint_def["endpointID"]
+        else:
+            subscription_def["vesselIMONumber"] = vessel_imo_number
+            subscription_def["callbackUrl"] = callback_url
+            update_subscription(subscription_url, subscriber_headers, subscription_def)
+    if subscription_def is None:
         subscription_def = {
             "callbackUrl": callback_url,
             "secret": endpoint_def["secret"],
@@ -109,14 +132,16 @@ def handle_subscription(receiver_base_url, receiver_headers, subscriber_base_url
         }
         subscription_def = create_subscription(subscriber_base_url, subscriber_headers, subscription_def)
         subscription_url = subscriber_base_url + "/event-subscriptions/" + subscription_def["subscriptionID"]
+    assert subscription_def is not None
     endpoint_def["subscriptionID"] = subscription_def["subscriptionID"]
-    if len(subscription_url) < 100:
+    if len(subscription_url) < 500:
         endpoint_def["subscriptionURL"] = subscriber_base_url + "/event-subscriptions/" + subscription_def["subscriptionID"]
     else:
         endpoint_def["subscriptionURL"] = "TOO-LONG"
     if endpoint_def.get("managedEndpoint") is None:
         endpoint_def["managedEndpoint"] = False
     update_endpoint_definition(receiver_base_url, receiver_headers, endpoint_def)
+    print(f'Linked {endpoint_def["endpointID"]} to subscription {endpoint_def["subscriptionID"]} (reference {receiver_reference}; callback_url {callback_url})')
 
 
 def subst_environment(value, baseurl):
@@ -183,9 +208,7 @@ def main():
     headers = parse_headers(args.headers)
     for subscription in parse_subscriptions(args.subscription_file, args.subscriber_baseurl, args.publisher_baseurl):
         (publisher_reference, publisher_base_url, subscriber_base_url, vessel_imo_number) = subscription
-        print(f"Checking {publisher_reference} (between {publisher_base_url} => {subscriber_base_url}")
         handle_subscription(publisher_base_url, headers, subscriber_base_url, headers, publisher_reference, vessel_imo_number)
-        print(f"Done {publisher_reference} (between {publisher_base_url} => {subscriber_base_url}")
 
 
 if __name__ == '__main__':
