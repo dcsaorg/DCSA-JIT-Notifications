@@ -171,8 +171,10 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                     );
                         }
                     }
-                    return result.then();
-                }).onErrorResume(NotFoundException.class, e -> Mono.error(new RuntimeException("Got a NotFoundException :'(", e)));
+                    return result
+                            .onErrorResume(NotFoundException.class, e -> Mono.error(new RuntimeException("Got a NotFoundException :'(", e)))
+                            .then();
+                });
     }
 
     private MessageSignatureHandler.Converter<List<Event>> eventConverter() {
