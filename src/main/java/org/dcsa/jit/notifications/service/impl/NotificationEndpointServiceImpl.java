@@ -158,18 +158,6 @@ public class NotificationEndpointServiceImpl extends ExtendedBaseServiceImpl<Not
                                     .flatMap(ignored -> genericEventService.findByEventTypeAndEventID(event.getEventType(), event.getEventID()))
                                     .switchIfEmpty(
                                             genericEventService.create(event)
-                                            .flatMap(ignored ->{
-                                                if(event instanceof OperationsEvent){
-                                                    try {
-                                                        ((OperationsEvent) event).ensurePhaseTypeIsDefined();
-                                                    } catch (IllegalStateException e) {
-                                                        return Mono.error(new CreateException("Cannot derive portCallPhaseTypeCode automatically from this timestamp. Please define it explicitly"));
-                                                    }
-                                                    return timestampDefinitionService.markOperationsEventAsTimestamp((OperationsEvent) event);
-                                                }  else {
-                                                    return Mono.just(event);
-                                                }
-                                            })
                                                     .flatMap(oe ->
                                                             Mono.zip(Mono.just(oe),
                                                                     timestampDefinitionRepository.findTimestampDefinitionById(oe.getEventID())
