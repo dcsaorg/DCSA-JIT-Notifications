@@ -178,7 +178,7 @@ def main():
     
     Example Usage:
     
-      setup-subscription subscriptions/singapore-subscriptions.csv \\
+      setup-subscription subscriptions/hamburg/subscriptions.csv \\
          --publisher-baseurl 'p6-singapore-production.dcsa.org/jit/v1' \\
          --subscriber-baseurl 'p6-singapore-production.dcsa.org/jit-notifications/v1' \\
          --header 'Authorization: Bearer eyJ...3pA'

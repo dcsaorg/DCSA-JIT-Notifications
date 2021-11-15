@@ -11,6 +11,10 @@ CMA-HPA-9839210,https://cma-cgm.{{baseurl}},https://hamburg-port-authority.{{bas
 CMA-HVCC-9839210,https://cma-cgm.{{baseurl}},https://hvcc-hamburg.{{baseurl}},9839210
 CMA-HPA-9690107,https://cma-cgm.{{baseurl}},https://hamburg-port-authority.{{baseurl}},9690107
 CMA-HVCC-9690107,https://cma-cgm.{{baseurl}},https://hvcc-hamburg.{{baseurl}},9690107
+CMA-HPA-9839179,https://cma-cgm.{{baseurl}},https://hamburg-port-authority.{{baseurl}},9839179
+CMA-HVCC-9839179,https://cma-cgm.{{baseurl}},https://hvcc-hamburg.{{baseurl}},9839179
+CMA-HPA-9344708,https://cma-cgm.{{baseurl}},https://hamburg-port-authority.{{baseurl}},9344708
+CMA-HVCC-9344708,https://cma-cgm.{{baseurl}},https://hvcc-hamburg.{{baseurl}},9344708
 EMC-HPA-9820855,https://evergreen-marine.{{baseurl}},https://hamburg-port-authority.{{baseurl}},9820855
 EMC-HVCC-9820855,https://evergreen-marine.{{baseurl}},https://hvcc-hamburg.{{baseurl}},9820855
 EMC-HPA-9667150,https://evergreen-marine.{{baseurl}},https://hamburg-port-authority.{{baseurl}},9667150
@@ -27,6 +31,10 @@ HVCC-CMA-9839210,https://hvcc-hamburg.{{baseurl}},https://cma-cgm.{{baseurl}},98
 HPA-CMA-9839210,https://hamburg-port-authority.{{baseurl}},https://cma-cgm.{{baseurl}},9839210
 HVCC-CMA-9690107,https://hvcc-hamburg.{{baseurl}},https://cma-cgm.{{baseurl}},9690107
 HPA-CMA-9690107,https://hamburg-port-authority.{{baseurl}},https://cma-cgm.{{baseurl}},9690107
+HVCC-CMA-9839179,https://hvcc-hamburg.{{baseurl}},https://cma-cgm.{{baseurl}},9839179
+HPA-CMA-9839179,https://hamburg-port-authority.{{baseurl}},https://cma-cgm.{{baseurl}},9839179
+HVCC-CMA-9344708,https://hvcc-hamburg.{{baseurl}},https://cma-cgm.{{baseurl}},9344708
+HPA-CMA-9344708,https://hamburg-port-authority.{{baseurl}},https://cma-cgm.{{baseurl}},9344708
 HVCC-EMC-9820855,https://hvcc-hamburg.{{baseurl}},https://evergreen-marine.{{baseurl}},9820855
 HPA-EMC-9820855,https://hamburg-port-authority.{{baseurl}},https://evergreen-marine.{{baseurl}},9820855
 HVCC-EMC-9667150,https://hvcc-hamburg.{{baseurl}},https://evergreen-marine.{{baseurl}},9667150
