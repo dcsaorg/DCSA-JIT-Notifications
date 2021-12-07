@@ -1,0 +1,35 @@
+{
+  "name": "singapore",
+  "environments": [
+    "test",
+    "production"
+  ],
+  "applications": {
+    "ui-support": "https://{{participant}}.p6-{{name}}-{{environment}}.dcsa.org/ui-support/v1",
+    "jit": "https://{{participant}}.p6-{{name}}-{{environment}}.dcsa.org/jit/v1",
+    "jit-notifications": "https://{{participant}}.p6-{{name}}-{{environment}}.dcsa.org/jit-notifications/v1"
+  },
+  "participants": {
+    "evergreen-marine": {
+      "role": "CA",
+      "smdg": "EMC"
+    },
+    "one-line": {
+      "role": "CA",
+      "smdg": "ONE"
+    },
+    "cma-cgm": {
+      "role": "CA",
+      "smdg": "CMA"
+    },
+    "psa": {
+      "role": "ATH"
+    },
+    "hvcc-hamburg": {
+      "role": "ATH"
+    },
+    "dcsa": {
+      "role": "DCSA"
+    }
+  }
+}
