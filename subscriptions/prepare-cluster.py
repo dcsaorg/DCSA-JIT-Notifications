@@ -18,7 +18,11 @@ class Participant:
 
     name: str
     role: str
-    smdg: str = None
+    # We support multiple smdgCodes for training clusters where multiple
+    # carriers are mashed into a single instance.  But most of the time,
+    # it will be "one carrier <=> one instance" and instead the json
+    # file will contain the "smdg" field which holds a single value.
+    smdgCodes: set[str] = frozenset()
 
     @property
     def is_port_member(self) -> 'bool':
@@ -32,16 +36,28 @@ class Participant:
     def is_dcsa(self):
         return self.role == 'DCSA'
 
+    @classmethod
+    def from_map(cls, **map):
+        if 'smdg' in map:
+            code = map['smdg']
+            del map['smdg']
+            map['smdgCodes'] = frozenset([code])
+        elif 'smdgCodes' in map:
+            map['smdgCodes'] = frozenset(map['smdgCodes'])
+        return Participant(**map)
+
 
 class ClusterDefinition:
 
     def __init__(self, data):
         self.name = data['name']
-        self.environments = data['environments']
+        self.environments = data.get('environments', [])
         self.applications = data['applications']
-        self.participants = {n: Participant(**x, name=n) for n, x in data['participants'].items()}
+        self.participants = {n: Participant.from_map(**x, name=n) for n, x in data['participants'].items()}
         if len(self.environments) < 1:
-            raise ValueError("Missing environments")
+            if not data.get("single-environment-cluster", False):
+                raise ValueError("Missing environments - if there are no environments, then "
+                                 "use '\"single-environment-cluster\": true' in the cluster definition")
         if not any(p.is_port_member for p in self.participants.values()):
             raise ValueError("Please add a port member (TR/ATH) under participants")
         if not any(p.is_carrier for p in self.participants.values()):
@@ -50,10 +66,12 @@ class ClusterDefinition:
     def application_url(self, application_name, environment, participant):
         if participant not in self.participants:
             raise ValueError(f"Unknown participant {participant}")
-        return self.applications[application_name] \
-                .replace("{{name}}", self.name) \
-                .replace("{{environment}}", environment) \
-                .replace("{{participant}}", participant)
+        url = self.applications[application_name] \
+            .replace("{{name}}", self.name) \
+            .replace("{{participant}}", participant)
+        if environment is not None:
+            url = url.replace("{{environment}}", environment)
+        return url
 
     @classmethod
     def from_file(cls, filename) -> 'ClusterDefinition':
@@ -350,7 +368,7 @@ def main():
         description=description,
     )
     parser.add_argument("cluster_definitions_path", type=str, help="Path to the cluster definitions")
-    parser.add_argument("environment", type=str, help="Which environment to update")
+    parser.add_argument("environment", type=str, default=None, nargs='?', help="Which environment to update")
     parser.add_argument("--header", action='append', type=str, default=None, dest="headers",
                         help="Add header to all the requests")
     args = parser.parse_args()
@@ -364,10 +382,18 @@ def main():
         cluster_directory = os.path.dirname(cluster_definitions_file)
 
     cluster_definition = ClusterDefinition.from_file(cluster_definitions_file)
-    if args.environment not in cluster_definition.environments:
-        print(f'Unknown environment ("{args.environment}") for cluster {cluster_definition.name}.  Please pick one of:')
+    if args.environment is None and cluster_definition.environments:
+        print(f'Missing environment for cluster {cluster_definition.name}.  Please pick one of:')
         for environment in cluster_definition.environments:
             print(f" - {environment}")
+        sys.exit(1)
+    if args.environment is not None and args.environment not in cluster_definition.environments:
+        if cluster_definition.environments:
+            print(f'The cluster {cluster_definition.name} does not have any environments.')
+        else:
+            print(f'Unknown environment ("{args.environment}") for cluster {cluster_definition.name}.  Please pick one of:')
+            for environment in cluster_definition.environments:
+                print(f" - {environment}")
         sys.exit(1)
 
     vessels = list(parse_vessels(os.path.join(cluster_directory, "vessels.csv")))
@@ -383,11 +409,12 @@ def main():
         for publisher in cluster_definition.participants.values():
             subscriptions = compute_subscriptions(participant, publisher, vessels)
             publisher_jit = cluster_definition.application_url("jit", args.environment, publisher.name)
-            print(f"Setting subscription between {participant_name} (subscriber) and {publisher.name} (publisher)")
+            print(f"Setting up subscription between {participant_name} (subscriber) and {publisher.name} (publisher)")
             # TODO: clean up old subscriptions
             if not subscriptions:
                 continue
             for subscriber_reference, vessel_imo_number in subscriptions:
+                # print(f"P: {publisher} -> S: {participant}, V: {vessel_imo_number}")
                 handle_subscription(jit_notifications, headers, publisher_jit, headers, subscriber_reference, vessel_imo_number)
 
 
@@ -416,9 +443,9 @@ def compute_subscriptions(subscriber, publisher, vessels):
         return [_create_subscription(subscriber, publisher, None)]
 
     if subscriber.is_carrier or publisher.is_carrier:
-        carrier_smdg = publisher.smdg or subscriber.smdg
+        carrier_smdg = publisher.smdgCodes or subscriber.smdgCodes
         return [_create_subscription(subscriber, publisher, v)
-                for v in vessels if v["vesselOperatorCarrierCode"] == carrier_smdg]
+                for v in vessels if v["vesselOperatorCarrierCode"] in carrier_smdg]
 
     return [_create_subscription(subscriber, publisher, v)
             for v in vessels]
